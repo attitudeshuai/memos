@@ -89,6 +89,9 @@ type FindMemo struct {
 	// Pagination
 	Limit  *int
 	Offset *int
+	// Cursor, when set, paginates with a keyset position after the named row;
+	// Offset is then ignored.
+	Cursor *MemoKeyset
 
 	// Ordering
 	OrderByPinned    bool

@@ -10,11 +10,18 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file api/common.proto.
  */
 export const file_api_common: GenFile = /*@__PURE__*/
-  fileDesc("ChBhcGkvY29tbW9uLnByb3RvEgltZW1vcy5hcGkiKgoJUGFnZVRva2VuEg0KBWxpbWl0GAEgASgFEg4KBm9mZnNldBgCIAEoBSo4CgVTdGF0ZRIVChFTVEFURV9VTlNQRUNJRklFRBAAEgoKBk5PUk1BTBABEgwKCEFSQ0hJVkVEEAIqOQoJRGlyZWN0aW9uEhkKFURJUkVDVElPTl9VTlNQRUNJRklFRBAAEgcKA0FTQxABEggKBERFU0MQAkKKAQoNY29tLm1lbW9zLmFwaUILQ29tbW9uUHJvdG9QAVonZ2l0aHViLmNvbS91c2VtZW1vcy9tZW1vcy9wcm90by9nZW4vYXBpogIDTUFYqgIJTWVtb3MuQXBpygIJTWVtb3NcQXBp4gIVTWVtb3NcQXBpXEdQQk1ldGFkYXRh6gIKTWVtb3M6OkFwaWIGcHJvdG8z");
+  fileDesc("ChBhcGkvY29tbW9uLnByb3RvEgltZW1vcy5hcGkihQEKCVBhZ2VUb2tlbhINCgVsaW1pdBgBIAEoBRIOCgZvZmZzZXQYAiABKAUSLgoLbWVtb19jdXJzb3IYAyABKAsyGS5tZW1vcy5hcGkuTWVtb1BhZ2VDdXJzb3ISFgoOaXNzdWVkX2F0X3VuaXgYBCABKAMSEQoJc2lnbmF0dXJlGAUgASgMIqkBCg5NZW1vUGFnZUN1cnNvchIWCg5zb3J0X2J5X3VwZGF0ZRgBIAEoCBIQCgh0aW1lX2FzYxgCIAEoCBIUCgxwaW5uZWRfZmlyc3QYAyABKAgSEAoIYXJjaGl2ZWQYBCABKAgSDgoGZmlsdGVyGAUgASgJEg8KB2xhc3RfdHMYBiABKAMSDwoHbGFzdF9pZBgHIAEoBRITCgtsYXN0X3Bpbm5lZBgIIAEoCCo4CgVTdGF0ZRIVChFTVEFURV9VTlNQRUNJRklFRBAAEgoKBk5PUk1BTBABEgwKCEFSQ0hJVkVEEAIqOQoJRGlyZWN0aW9uEhkKFURJUkVDVElPTl9VTlNQRUNJRklFRBAAEgcKA0FTQxABEggKBERFU0MQAkKKAQoNY29tLm1lbW9zLmFwaUILQ29tbW9uUHJvdG9QAVonZ2l0aHViLmNvbS91c2VtZW1vcy9tZW1vcy9wcm90by9nZW4vYXBpogIDTUFYqgIJTWVtb3MuQXBpygIJTWVtb3NcQXBp4gIVTWVtb3NcQXBpXEdQQk1ldGFkYXRh6gIKTWVtb3M6OkFwaWIGcHJvdG8z");
 
 /**
  * PageToken is the internal content of an opaque page token. The service
  * serializes it and encodes it as base64; clients must not parse it.
+ * 
+ * Two token shapes coexist:
+ *   - Keyset tokens carry memo_cursor, issued_at_unix, and a signature. They
+ *     position the next page after the last row of the previous page and are
+ *     stable under concurrent inserts and archiving.
+ *   - Legacy tokens carry only limit and offset. They remain accepted during
+ *     the transition but are no longer issued by MemoService.ListMemos.
  *
  * @generated from message memos.api.PageToken
  */
@@ -27,11 +34,35 @@ export type PageToken = Message<"memos.api.PageToken"> & {
   limit: number;
 
   /**
-   * The number of items to skip before the next page.
+   * The number of items to skip before the next page. Set only by legacy
+   * offset tokens.
    *
    * @generated from field: int32 offset = 2;
    */
   offset: number;
+
+  /**
+   * Keyset cursor for MemoService.ListMemos. When present, offset is ignored.
+   *
+   * @generated from field: memos.api.MemoPageCursor memo_cursor = 3;
+   */
+  memoCursor?: MemoPageCursor | undefined;
+
+  /**
+   * Unix timestamp (seconds) at which the token was issued. Keyset tokens
+   * expire a fixed duration after this instant.
+   *
+   * @generated from field: int64 issued_at_unix = 4;
+   */
+  issuedAtUnix: bigint;
+
+  /**
+   * HMAC-SHA256 over the deterministic serialization of every other field of
+   * this message. Absent on legacy offset tokens.
+   *
+   * @generated from field: bytes signature = 5;
+   */
+  signature: Uint8Array;
 };
 
 /**
@@ -40,6 +71,84 @@ export type PageToken = Message<"memos.api.PageToken"> & {
  */
 export const PageTokenSchema: GenMessage<PageToken> = /*@__PURE__*/
   messageDesc(file_api_common, 0);
+
+/**
+ * MemoPageCursor is a keyset position for MemoService.ListMemos. It records
+ * the effective query shape and the sort-key values of the previous page's
+ * last row. The service rejects a token whose shape no longer matches the
+ * request's state, filter, and order_by.
+ *
+ * @generated from message memos.api.MemoPageCursor
+ */
+export type MemoPageCursor = Message<"memos.api.MemoPageCursor"> & {
+  /**
+   * Whether results are ordered by update_time. When false, create_time is
+   * used.
+   *
+   * @generated from field: bool sort_by_update = 1;
+   */
+  sortByUpdate: boolean;
+
+  /**
+   * Whether the time sort is ascending. When false, it is descending. The id
+   * tie-breaker always sorts descending.
+   *
+   * @generated from field: bool time_asc = 2;
+   */
+  timeAsc: boolean;
+
+  /**
+   * Whether pinned memos sort first (order_by contained "pinned").
+   *
+   * @generated from field: bool pinned_first = 3;
+   */
+  pinnedFirst: boolean;
+
+  /**
+   * Whether the request lists archived memos instead of normal memos.
+   *
+   * @generated from field: bool archived = 4;
+   */
+  archived: boolean;
+
+  /**
+   * The raw CEL filter expression the token was minted for. Empty when no
+   * filter was set. Later pages may omit filter; the signed value in the
+   * token is then reused. Sending a different filter with the token is
+   * rejected.
+   *
+   * @generated from field: string filter = 5;
+   */
+  filter: string;
+
+  /**
+   * The last row's create_time or update_time value, in Unix seconds.
+   *
+   * @generated from field: int64 last_ts = 6;
+   */
+  lastTs: bigint;
+
+  /**
+   * The last row's id. Final tie-breaker, unique and never null.
+   *
+   * @generated from field: int32 last_id = 7;
+   */
+  lastId: number;
+
+  /**
+   * The last row's pinned value. Set only when pinned_first is true.
+   *
+   * @generated from field: bool last_pinned = 8;
+   */
+  lastPinned: boolean;
+};
+
+/**
+ * Describes the message memos.api.MemoPageCursor.
+ * Use `create(MemoPageCursorSchema)` to create a new message.
+ */
+export const MemoPageCursorSchema: GenMessage<MemoPageCursor> = /*@__PURE__*/
+  messageDesc(file_api_common, 1);
 
 /**
  * State is the lifecycle state of a resource.

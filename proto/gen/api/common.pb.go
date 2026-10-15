@@ -127,12 +127,28 @@ func (Direction) EnumDescriptor() ([]byte, []int) {
 
 // PageToken is the internal content of an opaque page token. The service
 // serializes it and encodes it as base64; clients must not parse it.
+//
+// Two token shapes coexist:
+//   - Keyset tokens carry memo_cursor, issued_at_unix, and a signature. They
+//     position the next page after the last row of the previous page and are
+//     stable under concurrent inserts and archiving.
+//   - Legacy tokens carry only limit and offset. They remain accepted during
+//     the transition but are no longer issued by MemoService.ListMemos.
 type PageToken struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The page size used for the next page.
 	Limit int32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
-	// The number of items to skip before the next page.
-	Offset        int32 `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	// The number of items to skip before the next page. Set only by legacy
+	// offset tokens.
+	Offset int32 `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	// Keyset cursor for MemoService.ListMemos. When present, offset is ignored.
+	MemoCursor *MemoPageCursor `protobuf:"bytes,3,opt,name=memo_cursor,json=memoCursor,proto3" json:"memo_cursor,omitempty"`
+	// Unix timestamp (seconds) at which the token was issued. Keyset tokens
+	// expire a fixed duration after this instant.
+	IssuedAtUnix int64 `protobuf:"varint,4,opt,name=issued_at_unix,json=issuedAtUnix,proto3" json:"issued_at_unix,omitempty"`
+	// HMAC-SHA256 over the deterministic serialization of every other field of
+	// this message. Absent on legacy offset tokens.
+	Signature     []byte `protobuf:"bytes,5,opt,name=signature,proto3" json:"signature,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -181,14 +197,166 @@ func (x *PageToken) GetOffset() int32 {
 	return 0
 }
 
+func (x *PageToken) GetMemoCursor() *MemoPageCursor {
+	if x != nil {
+		return x.MemoCursor
+	}
+	return nil
+}
+
+func (x *PageToken) GetIssuedAtUnix() int64 {
+	if x != nil {
+		return x.IssuedAtUnix
+	}
+	return 0
+}
+
+func (x *PageToken) GetSignature() []byte {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
+// MemoPageCursor is a keyset position for MemoService.ListMemos. It records
+// the effective query shape and the sort-key values of the previous page's
+// last row. The service rejects a token whose shape no longer matches the
+// request's state, filter, and order_by.
+type MemoPageCursor struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether results are ordered by update_time. When false, create_time is
+	// used.
+	SortByUpdate bool `protobuf:"varint,1,opt,name=sort_by_update,json=sortByUpdate,proto3" json:"sort_by_update,omitempty"`
+	// Whether the time sort is ascending. When false, it is descending. The id
+	// tie-breaker always sorts descending.
+	TimeAsc bool `protobuf:"varint,2,opt,name=time_asc,json=timeAsc,proto3" json:"time_asc,omitempty"`
+	// Whether pinned memos sort first (order_by contained "pinned").
+	PinnedFirst bool `protobuf:"varint,3,opt,name=pinned_first,json=pinnedFirst,proto3" json:"pinned_first,omitempty"`
+	// Whether the request lists archived memos instead of normal memos.
+	Archived bool `protobuf:"varint,4,opt,name=archived,proto3" json:"archived,omitempty"`
+	// The raw CEL filter expression the token was minted for. Empty when no
+	// filter was set. Later pages may omit filter; the signed value in the
+	// token is then reused. Sending a different filter with the token is
+	// rejected.
+	Filter string `protobuf:"bytes,5,opt,name=filter,proto3" json:"filter,omitempty"`
+	// The last row's create_time or update_time value, in Unix seconds.
+	LastTs int64 `protobuf:"varint,6,opt,name=last_ts,json=lastTs,proto3" json:"last_ts,omitempty"`
+	// The last row's id. Final tie-breaker, unique and never null.
+	LastId int32 `protobuf:"varint,7,opt,name=last_id,json=lastId,proto3" json:"last_id,omitempty"`
+	// The last row's pinned value. Set only when pinned_first is true.
+	LastPinned    bool `protobuf:"varint,8,opt,name=last_pinned,json=lastPinned,proto3" json:"last_pinned,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MemoPageCursor) Reset() {
+	*x = MemoPageCursor{}
+	mi := &file_api_common_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MemoPageCursor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MemoPageCursor) ProtoMessage() {}
+
+func (x *MemoPageCursor) ProtoReflect() protoreflect.Message {
+	mi := &file_api_common_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MemoPageCursor.ProtoReflect.Descriptor instead.
+func (*MemoPageCursor) Descriptor() ([]byte, []int) {
+	return file_api_common_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *MemoPageCursor) GetSortByUpdate() bool {
+	if x != nil {
+		return x.SortByUpdate
+	}
+	return false
+}
+
+func (x *MemoPageCursor) GetTimeAsc() bool {
+	if x != nil {
+		return x.TimeAsc
+	}
+	return false
+}
+
+func (x *MemoPageCursor) GetPinnedFirst() bool {
+	if x != nil {
+		return x.PinnedFirst
+	}
+	return false
+}
+
+func (x *MemoPageCursor) GetArchived() bool {
+	if x != nil {
+		return x.Archived
+	}
+	return false
+}
+
+func (x *MemoPageCursor) GetFilter() string {
+	if x != nil {
+		return x.Filter
+	}
+	return ""
+}
+
+func (x *MemoPageCursor) GetLastTs() int64 {
+	if x != nil {
+		return x.LastTs
+	}
+	return 0
+}
+
+func (x *MemoPageCursor) GetLastId() int32 {
+	if x != nil {
+		return x.LastId
+	}
+	return 0
+}
+
+func (x *MemoPageCursor) GetLastPinned() bool {
+	if x != nil {
+		return x.LastPinned
+	}
+	return false
+}
+
 var File_api_common_proto protoreflect.FileDescriptor
 
 const file_api_common_proto_rawDesc = "" +
 	"\n" +
-	"\x10api/common.proto\x12\tmemos.api\"9\n" +
+	"\x10api/common.proto\x12\tmemos.api\"\xb9\x01\n" +
 	"\tPageToken\x12\x14\n" +
 	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x02 \x01(\x05R\x06offset*8\n" +
+	"\x06offset\x18\x02 \x01(\x05R\x06offset\x12:\n" +
+	"\vmemo_cursor\x18\x03 \x01(\v2\x19.memos.api.MemoPageCursorR\n" +
+	"memoCursor\x12$\n" +
+	"\x0eissued_at_unix\x18\x04 \x01(\x03R\fissuedAtUnix\x12\x1c\n" +
+	"\tsignature\x18\x05 \x01(\fR\tsignature\"\xfb\x01\n" +
+	"\x0eMemoPageCursor\x12$\n" +
+	"\x0esort_by_update\x18\x01 \x01(\bR\fsortByUpdate\x12\x19\n" +
+	"\btime_asc\x18\x02 \x01(\bR\atimeAsc\x12!\n" +
+	"\fpinned_first\x18\x03 \x01(\bR\vpinnedFirst\x12\x1a\n" +
+	"\barchived\x18\x04 \x01(\bR\barchived\x12\x16\n" +
+	"\x06filter\x18\x05 \x01(\tR\x06filter\x12\x17\n" +
+	"\alast_ts\x18\x06 \x01(\x03R\x06lastTs\x12\x17\n" +
+	"\alast_id\x18\a \x01(\x05R\x06lastId\x12\x1f\n" +
+	"\vlast_pinned\x18\b \x01(\bR\n" +
+	"lastPinned*8\n" +
 	"\x05State\x12\x15\n" +
 	"\x11STATE_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
@@ -214,18 +382,20 @@ func file_api_common_proto_rawDescGZIP() []byte {
 }
 
 var file_api_common_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_api_common_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_api_common_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_api_common_proto_goTypes = []any{
-	(State)(0),        // 0: memos.api.State
-	(Direction)(0),    // 1: memos.api.Direction
-	(*PageToken)(nil), // 2: memos.api.PageToken
+	(State)(0),             // 0: memos.api.State
+	(Direction)(0),         // 1: memos.api.Direction
+	(*PageToken)(nil),      // 2: memos.api.PageToken
+	(*MemoPageCursor)(nil), // 3: memos.api.MemoPageCursor
 }
 var file_api_common_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	3, // 0: memos.api.PageToken.memo_cursor:type_name -> memos.api.MemoPageCursor
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_api_common_proto_init() }
@@ -239,7 +409,7 @@ func file_api_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_common_proto_rawDesc), len(file_api_common_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

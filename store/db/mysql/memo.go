@@ -198,6 +198,9 @@ func (d *DB) ListMemos(ctx context.Context, find *store.FindMemo) ([]*store.Memo
 			WHERE comment_relation.memo_id = memo.id AND comment_relation.type = 'COMMENT'
 		)`)
 	}
+	if err := store.AppendMemoKeysetCondition(find, filter.DialectMySQL, &where, &args); err != nil {
+		return nil, err
+	}
 
 	order := "DESC"
 	if find.OrderByTimeAsc {
@@ -243,7 +246,7 @@ func (d *DB) ListMemos(ctx context.Context, find *store.FindMemo) ([]*store.Memo
 		"ORDER BY " + strings.Join(orderBy, ", ")
 	if find.Limit != nil {
 		query = fmt.Sprintf("%s LIMIT %d", query, *find.Limit)
-		if find.Offset != nil {
+		if find.Offset != nil && find.Cursor == nil {
 			query = fmt.Sprintf("%s OFFSET %d", query, *find.Offset)
 		}
 	}

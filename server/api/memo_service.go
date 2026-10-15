@@ -97,21 +97,17 @@ func (s *APIService) ListMemos(ctx context.Context, request *apipb.ListMemosRequ
 	}
 	memoFind.Access = accessScope
 
-	if request.State == apipb.State_ARCHIVED {
-		state := store.Archived
-		memoFind.RowStatus = &state
-		// Archived memos are only visible to their creator.
-		if currentUser == nil {
-			return &apipb.ListMemosResponse{}, nil
-		}
-		memoFind.CreatorID = &currentUser.ID
-	} else {
-		state := store.Normal
-		memoFind.RowStatus = &state
+	// Archived memos are only visible to their creator. An explicit archived
+	// request from an anonymous caller returns nothing.
+	requestedArchived := request.State == apipb.State_ARCHIVED
+	if requestedArchived && currentUser == nil {
+		return &apipb.ListMemosResponse{}, nil
 	}
 
-	// Parse order_by field (replaces the old sort and direction fields)
-	if request.OrderBy != "" {
+	// Parse an explicit order_by. When order_by is omitted on a keyset-token
+	// request, the ordering is restored from the signed token below.
+	explicitOrderBy := request.OrderBy != ""
+	if explicitOrderBy {
 		if err := s.parseMemoOrderBy(request.OrderBy, memoFind); err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid order_by: %v", err)
 		}
@@ -120,38 +116,91 @@ func (s *APIService) ListMemos(ctx context.Context, request *apipb.ListMemosRequ
 		memoFind.OrderByTimeAsc = false
 	}
 
-	if request.Filter != "" {
-		if err := s.validateMemoFilterForUser(ctx, request.Filter, currentUser); err != nil {
-			return nil, err
+	// The effective shape comes from the request on the first page. A keyset
+	// token then becomes authoritative: omitted state/filter/order_by fields
+	// are restored from the signed token, while supplied fields must agree.
+	pageShape := newMemoPageShape(request, memoFind)
+
+	limit := normalizePageSize(request.PageSize)
+	var pageCursor *store.MemoKeyset
+	if request.PageToken != "" {
+		parsedPageToken, err := s.parseMemoPageToken(request.PageToken, time.Now())
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 		}
-		memoFind.Filters = append(memoFind.Filters, request.Filter)
+		limit = parsedPageToken.limit
+		if parsedPageToken.cursor != nil {
+			cursor := parsedPageToken.cursor
+			if explicitOrderBy &&
+				(cursor.SortByUpdate != pageShape.sortByUpdate ||
+					cursor.TimeAsc != pageShape.timeAsc ||
+					cursor.PinnedFirst != pageShape.pinnedFirst) {
+				return nil, status.Errorf(codes.InvalidArgument, "%v", errMemoPageTokenMismatch)
+			}
+			if request.Filter != "" && cursor.Filter != request.Filter {
+				return nil, status.Errorf(codes.InvalidArgument, "%v", errMemoPageTokenMismatch)
+			}
+			if requestedArchived && !cursor.Archived {
+				return nil, status.Errorf(codes.InvalidArgument, "%v", errMemoPageTokenMismatch)
+			}
+			pageShape = memoPageShape{
+				sortByUpdate: cursor.SortByUpdate,
+				timeAsc:      cursor.TimeAsc,
+				pinnedFirst:  cursor.PinnedFirst,
+				archived:     cursor.Archived,
+				filter:       cursor.Filter,
+			}
+			pageCursor = &store.MemoKeyset{
+				LastPinned: cursor.LastPinned,
+				LastTs:     cursor.LastTs,
+				LastID:     cursor.LastId,
+			}
+		} else {
+			// Legacy offset token during the transition period.
+			offset := parsedPageToken.offset
+			memoFind.Offset = &offset
+		}
 	}
 
-	var limit, offset int
-	if request.PageToken != "" {
-		var pageToken apipb.PageToken
-		if err := unmarshalPageToken(request.PageToken, &pageToken); err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "invalid page token: %v", err)
+	// Apply the effective shape to the query.
+	memoFind.OrderByPinned = pageShape.pinnedFirst
+	memoFind.OrderByUpdatedTs = pageShape.sortByUpdate
+	memoFind.OrderByTimeAsc = pageShape.timeAsc
+	if pageShape.archived {
+		// Archived listings stay scoped to the caller; an anonymous caller
+		// cannot hold a valid archived token and gets nothing.
+		if currentUser == nil {
+			return &apipb.ListMemosResponse{}, nil
 		}
-		limit = normalizePageSize(pageToken.Limit)
-		offset = max(int(pageToken.Offset), 0)
+		state := store.Archived
+		memoFind.RowStatus = &state
+		memoFind.CreatorID = &currentUser.ID
 	} else {
-		limit = normalizePageSize(request.PageSize)
+		state := store.Normal
+		memoFind.RowStatus = &state
 	}
-	limit = min(limit, MaxPageSize)
+	if pageShape.filter != "" {
+		if err := s.validateMemoFilterForUser(ctx, pageShape.filter, currentUser); err != nil {
+			return nil, err
+		}
+		memoFind.Filters = append(memoFind.Filters, pageShape.filter)
+	}
+
 	limitPlusOne := limit + 1
 	memoFind.Limit = &limitPlusOne
-	memoFind.Offset = &offset
+	memoFind.Cursor = pageCursor
 	memos, err := s.Store.ListMemos(ctx, memoFind)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to list memos: %v", err)
 	}
 
 	memoMessages := []*apipb.Memo{}
+	// next_page_token is empty both when the result set is empty and when the
+	// current page is the last one; clients stop paging on an empty token.
 	nextPageToken := ""
 	if len(memos) == limitPlusOne {
 		memos = memos[:limit]
-		nextPageToken, err = getPageToken(limit, offset+limit)
+		nextPageToken, err = s.encodeMemoPageToken(limit, pageShape, memos[limit-1], time.Now())
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get next page token, error: %v", err)
 		}
