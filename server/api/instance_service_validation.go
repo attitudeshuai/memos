@@ -12,6 +12,7 @@ import (
 
 	apipb "github.com/usememos/memos/proto/gen/api"
 	storepb "github.com/usememos/memos/proto/gen/store"
+	"github.com/usememos/memos/store"
 )
 
 func validateInstanceSetting(setting *apipb.InstanceSetting) error {
@@ -29,6 +30,11 @@ func validateInstanceSetting(setting *apipb.InstanceSetting) error {
 		return validateInstanceTagsSetting(setting.GetTagsSetting())
 	case storepb.InstanceSettingKey_ACCESS.String():
 		return validateInstanceAccessSetting(setting.GetAccessSetting())
+	case storepb.InstanceSettingKey_WEBHOOK.String():
+		if setting.GetWebhookSetting() == nil {
+			return errors.New("webhook setting is required")
+		}
+		return store.ValidateInstanceWebhookSetting(convertInstanceWebhookSettingToStore(setting.GetWebhookSetting()))
 	default:
 		return nil
 	}

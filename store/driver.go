@@ -113,4 +113,13 @@ type Driver interface {
 	CreateUserWithIdentity(ctx context.Context, createUser *User, createIdentity *UserIdentity) (*User, error)
 	ListUserIdentities(ctx context.Context, find *FindUserIdentity) ([]*UserIdentity, error)
 	DeleteUserIdentities(ctx context.Context, delete *DeleteUserIdentity) error
+
+	// WebhookDelivery model related methods.
+	CreateWebhookDelivery(ctx context.Context, create *WebhookDelivery) (*WebhookDelivery, error)
+	ListWebhookDeliveries(ctx context.Context, find *FindWebhookDeliveries) ([]*WebhookDelivery, error)
+	ClaimDueWebhookDeliveries(ctx context.Context, nowTs int64, limit int) ([]*WebhookDelivery, error)
+	SettleWebhookDelivery(ctx context.Context, settle *SettleWebhookDelivery) (bool, error)
+	RecoverInterruptedDeliveries(ctx context.Context, nowTs int64) (int64, error)
+	ReplayWebhookDelivery(ctx context.Context, id int64, nowTs int64) (*WebhookDelivery, error)
+	PruneWebhookDeliveries(ctx context.Context, userID int32, webhookID string, keep int) error
 }

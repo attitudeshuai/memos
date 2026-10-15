@@ -46,6 +46,9 @@ const (
 	UserService_UpdateUserWebhook_FullMethodName           = "/memos.api.UserService/UpdateUserWebhook"
 	UserService_DeleteUserWebhook_FullMethodName           = "/memos.api.UserService/DeleteUserWebhook"
 	UserService_GetUserWebhookSigningSecret_FullMethodName = "/memos.api.UserService/GetUserWebhookSigningSecret"
+	UserService_ListUserWebhookDeliveries_FullMethodName   = "/memos.api.UserService/ListUserWebhookDeliveries"
+	UserService_GetUserWebhookDelivery_FullMethodName      = "/memos.api.UserService/GetUserWebhookDelivery"
+	UserService_ReplayUserWebhookDelivery_FullMethodName   = "/memos.api.UserService/ReplayUserWebhookDelivery"
 	UserService_ListLinkedIdentities_FullMethodName        = "/memos.api.UserService/ListLinkedIdentities"
 	UserService_GetLinkedIdentity_FullMethodName           = "/memos.api.UserService/GetLinkedIdentity"
 	UserService_CreateLinkedIdentity_FullMethodName        = "/memos.api.UserService/CreateLinkedIdentity"
@@ -136,6 +139,18 @@ type UserServiceClient interface {
 	// the owner may call it. The secret is returned only through this call; it
 	// is never included in List, Create or Update responses.
 	GetUserWebhookSigningSecret(ctx context.Context, in *GetUserWebhookSigningSecretRequest, opts ...grpc.CallOption) (*GetUserWebhookSigningSecretResponse, error)
+	// ListUserWebhookDeliveries lists the lifecycle delivery records of one
+	// webhook, newest first. Only the webhook owner or an instance admin may
+	// call it. Records of a deleted webhook remain readable for admins.
+	ListUserWebhookDeliveries(ctx context.Context, in *ListUserWebhookDeliveriesRequest, opts ...grpc.CallOption) (*ListUserWebhookDeliveriesResponse, error)
+	// GetUserWebhookDelivery gets one webhook delivery record, including its
+	// state and the last failure reason. Only the webhook owner or an instance
+	// admin may call it.
+	GetUserWebhookDelivery(ctx context.Context, in *GetUserWebhookDeliveryRequest, opts ...grpc.CallOption) (*UserWebhookDelivery, error)
+	// ReplayUserWebhookDelivery requeues an abandoned delivery for a fresh
+	// delivery sequence. Succeeded and in-flight deliveries cannot be replayed.
+	// Only the webhook owner or an instance admin may call it.
+	ReplayUserWebhookDelivery(ctx context.Context, in *ReplayUserWebhookDeliveryRequest, opts ...grpc.CallOption) (*UserWebhookDelivery, error)
 	// ListLinkedIdentities lists the SSO identities linked to a user. The user
 	// and admins may call it.
 	ListLinkedIdentities(ctx context.Context, in *ListLinkedIdentitiesRequest, opts ...grpc.CallOption) (*ListLinkedIdentitiesResponse, error)
@@ -433,6 +448,36 @@ func (c *userServiceClient) GetUserWebhookSigningSecret(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *userServiceClient) ListUserWebhookDeliveries(ctx context.Context, in *ListUserWebhookDeliveriesRequest, opts ...grpc.CallOption) (*ListUserWebhookDeliveriesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListUserWebhookDeliveriesResponse)
+	err := c.cc.Invoke(ctx, UserService_ListUserWebhookDeliveries_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) GetUserWebhookDelivery(ctx context.Context, in *GetUserWebhookDeliveryRequest, opts ...grpc.CallOption) (*UserWebhookDelivery, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UserWebhookDelivery)
+	err := c.cc.Invoke(ctx, UserService_GetUserWebhookDelivery_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) ReplayUserWebhookDelivery(ctx context.Context, in *ReplayUserWebhookDeliveryRequest, opts ...grpc.CallOption) (*UserWebhookDelivery, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UserWebhookDelivery)
+	err := c.cc.Invoke(ctx, UserService_ReplayUserWebhookDelivery_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *userServiceClient) ListLinkedIdentities(ctx context.Context, in *ListLinkedIdentitiesRequest, opts ...grpc.CallOption) (*ListLinkedIdentitiesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListLinkedIdentitiesResponse)
@@ -602,6 +647,18 @@ type UserServiceServer interface {
 	// the owner may call it. The secret is returned only through this call; it
 	// is never included in List, Create or Update responses.
 	GetUserWebhookSigningSecret(context.Context, *GetUserWebhookSigningSecretRequest) (*GetUserWebhookSigningSecretResponse, error)
+	// ListUserWebhookDeliveries lists the lifecycle delivery records of one
+	// webhook, newest first. Only the webhook owner or an instance admin may
+	// call it. Records of a deleted webhook remain readable for admins.
+	ListUserWebhookDeliveries(context.Context, *ListUserWebhookDeliveriesRequest) (*ListUserWebhookDeliveriesResponse, error)
+	// GetUserWebhookDelivery gets one webhook delivery record, including its
+	// state and the last failure reason. Only the webhook owner or an instance
+	// admin may call it.
+	GetUserWebhookDelivery(context.Context, *GetUserWebhookDeliveryRequest) (*UserWebhookDelivery, error)
+	// ReplayUserWebhookDelivery requeues an abandoned delivery for a fresh
+	// delivery sequence. Succeeded and in-flight deliveries cannot be replayed.
+	// Only the webhook owner or an instance admin may call it.
+	ReplayUserWebhookDelivery(context.Context, *ReplayUserWebhookDeliveryRequest) (*UserWebhookDelivery, error)
 	// ListLinkedIdentities lists the SSO identities linked to a user. The user
 	// and admins may call it.
 	ListLinkedIdentities(context.Context, *ListLinkedIdentitiesRequest) (*ListLinkedIdentitiesResponse, error)
@@ -723,6 +780,15 @@ func (UnimplementedUserServiceServer) DeleteUserWebhook(context.Context, *Delete
 }
 func (UnimplementedUserServiceServer) GetUserWebhookSigningSecret(context.Context, *GetUserWebhookSigningSecretRequest) (*GetUserWebhookSigningSecretResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUserWebhookSigningSecret not implemented")
+}
+func (UnimplementedUserServiceServer) ListUserWebhookDeliveries(context.Context, *ListUserWebhookDeliveriesRequest) (*ListUserWebhookDeliveriesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListUserWebhookDeliveries not implemented")
+}
+func (UnimplementedUserServiceServer) GetUserWebhookDelivery(context.Context, *GetUserWebhookDeliveryRequest) (*UserWebhookDelivery, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUserWebhookDelivery not implemented")
+}
+func (UnimplementedUserServiceServer) ReplayUserWebhookDelivery(context.Context, *ReplayUserWebhookDeliveryRequest) (*UserWebhookDelivery, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReplayUserWebhookDelivery not implemented")
 }
 func (UnimplementedUserServiceServer) ListLinkedIdentities(context.Context, *ListLinkedIdentitiesRequest) (*ListLinkedIdentitiesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListLinkedIdentities not implemented")
@@ -1222,6 +1288,60 @@ func _UserService_GetUserWebhookSigningSecret_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_ListUserWebhookDeliveries_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListUserWebhookDeliveriesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).ListUserWebhookDeliveries(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_ListUserWebhookDeliveries_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).ListUserWebhookDeliveries(ctx, req.(*ListUserWebhookDeliveriesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_GetUserWebhookDelivery_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserWebhookDeliveryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetUserWebhookDelivery(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetUserWebhookDelivery_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetUserWebhookDelivery(ctx, req.(*GetUserWebhookDeliveryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_ReplayUserWebhookDelivery_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReplayUserWebhookDeliveryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).ReplayUserWebhookDelivery(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_ReplayUserWebhookDelivery_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).ReplayUserWebhookDelivery(ctx, req.(*ReplayUserWebhookDeliveryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _UserService_ListLinkedIdentities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListLinkedIdentitiesRequest)
 	if err := dec(in); err != nil {
@@ -1490,6 +1610,18 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUserWebhookSigningSecret",
 			Handler:    _UserService_GetUserWebhookSigningSecret_Handler,
+		},
+		{
+			MethodName: "ListUserWebhookDeliveries",
+			Handler:    _UserService_ListUserWebhookDeliveries_Handler,
+		},
+		{
+			MethodName: "GetUserWebhookDelivery",
+			Handler:    _UserService_GetUserWebhookDelivery_Handler,
+		},
+		{
+			MethodName: "ReplayUserWebhookDelivery",
+			Handler:    _UserService_ReplayUserWebhookDelivery_Handler,
 		},
 		{
 			MethodName: "ListLinkedIdentities",

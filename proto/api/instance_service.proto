@@ -185,6 +185,8 @@ message InstanceSetting {
     AISetting ai_setting = 7;
     // The value of the ACCESS setting.
     AccessSetting access_setting = 8;
+    // The value of the WEBHOOK setting.
+    WebhookSetting webhook_setting = 9;
   }
 
   // Key identifies an instance setting.
@@ -204,6 +206,8 @@ message InstanceSetting {
     AI = 6;
     // Instance access policy settings.
     ACCESS = 7;
+    // Outbound webhook delivery lifecycle settings.
+    WEBHOOK = 8;
   }
 
   // StorageType is the backend of a configured storage.
@@ -494,6 +498,34 @@ message InstanceSetting {
   message AccessSetting {
     // Whether unauthenticated users may access instance content. Must be PRIVATE or PUBLIC on update.
     InstanceAccessMode access_mode = 1;
+  }
+
+  // WebhookSetting is the outbound webhook delivery lifecycle configuration.
+  // When retry_policy is unset or max_attempts is 0, deliveries keep the
+  // legacy fire-and-forget behavior and no delivery ledger is written.
+  message WebhookSetting {
+    // The bounded retry policy for failed deliveries.
+    RetryPolicy retry_policy = 1;
+
+    // The maximum number of terminal delivery records kept per webhook.
+    // 0 means the server default (100).
+    int32 ledger_retention_count = 2;
+
+    // RetryPolicy configures exponential backoff retries:
+    // min(backoff_base_seconds * 2^(attempts-1), backoff_max_seconds).
+    message RetryPolicy {
+      // Total delivery attempts including the first one. 0 disables the
+      // delivery ledger. Between 1 and 50 when enabled.
+      int32 max_attempts = 1;
+
+      // Delay before the second attempt, in seconds. 0 means the server
+      // default (30 seconds).
+      int64 backoff_base_seconds = 2;
+
+      // Upper bound of the backoff growth, in seconds. 0 means the server
+      // default (3600 seconds). Never smaller than backoff_base_seconds.
+      int64 backoff_max_seconds = 3;
+    }
   }
 }
 

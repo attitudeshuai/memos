@@ -104,6 +104,15 @@ const (
 	// UserServiceGetUserWebhookSigningSecretProcedure is the fully-qualified name of the UserService's
 	// GetUserWebhookSigningSecret RPC.
 	UserServiceGetUserWebhookSigningSecretProcedure = "/memos.api.UserService/GetUserWebhookSigningSecret"
+	// UserServiceListUserWebhookDeliveriesProcedure is the fully-qualified name of the UserService's
+	// ListUserWebhookDeliveries RPC.
+	UserServiceListUserWebhookDeliveriesProcedure = "/memos.api.UserService/ListUserWebhookDeliveries"
+	// UserServiceGetUserWebhookDeliveryProcedure is the fully-qualified name of the UserService's
+	// GetUserWebhookDelivery RPC.
+	UserServiceGetUserWebhookDeliveryProcedure = "/memos.api.UserService/GetUserWebhookDelivery"
+	// UserServiceReplayUserWebhookDeliveryProcedure is the fully-qualified name of the UserService's
+	// ReplayUserWebhookDelivery RPC.
+	UserServiceReplayUserWebhookDeliveryProcedure = "/memos.api.UserService/ReplayUserWebhookDelivery"
 	// UserServiceListLinkedIdentitiesProcedure is the fully-qualified name of the UserService's
 	// ListLinkedIdentities RPC.
 	UserServiceListLinkedIdentitiesProcedure = "/memos.api.UserService/ListLinkedIdentities"
@@ -204,6 +213,18 @@ type UserServiceClient interface {
 	// the owner may call it. The secret is returned only through this call; it
 	// is never included in List, Create or Update responses.
 	GetUserWebhookSigningSecret(context.Context, *connect.Request[api.GetUserWebhookSigningSecretRequest]) (*connect.Response[api.GetUserWebhookSigningSecretResponse], error)
+	// ListUserWebhookDeliveries lists the lifecycle delivery records of one
+	// webhook, newest first. Only the webhook owner or an instance admin may
+	// call it. Records of a deleted webhook remain readable for admins.
+	ListUserWebhookDeliveries(context.Context, *connect.Request[api.ListUserWebhookDeliveriesRequest]) (*connect.Response[api.ListUserWebhookDeliveriesResponse], error)
+	// GetUserWebhookDelivery gets one webhook delivery record, including its
+	// state and the last failure reason. Only the webhook owner or an instance
+	// admin may call it.
+	GetUserWebhookDelivery(context.Context, *connect.Request[api.GetUserWebhookDeliveryRequest]) (*connect.Response[api.UserWebhookDelivery], error)
+	// ReplayUserWebhookDelivery requeues an abandoned delivery for a fresh
+	// delivery sequence. Succeeded and in-flight deliveries cannot be replayed.
+	// Only the webhook owner or an instance admin may call it.
+	ReplayUserWebhookDelivery(context.Context, *connect.Request[api.ReplayUserWebhookDeliveryRequest]) (*connect.Response[api.UserWebhookDelivery], error)
 	// ListLinkedIdentities lists the SSO identities linked to a user. The user
 	// and admins may call it.
 	ListLinkedIdentities(context.Context, *connect.Request[api.ListLinkedIdentitiesRequest]) (*connect.Response[api.ListLinkedIdentitiesResponse], error)
@@ -404,6 +425,24 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(userServiceMethods.ByName("GetUserWebhookSigningSecret")),
 			connect.WithClientOptions(opts...),
 		),
+		listUserWebhookDeliveries: connect.NewClient[api.ListUserWebhookDeliveriesRequest, api.ListUserWebhookDeliveriesResponse](
+			httpClient,
+			baseURL+UserServiceListUserWebhookDeliveriesProcedure,
+			connect.WithSchema(userServiceMethods.ByName("ListUserWebhookDeliveries")),
+			connect.WithClientOptions(opts...),
+		),
+		getUserWebhookDelivery: connect.NewClient[api.GetUserWebhookDeliveryRequest, api.UserWebhookDelivery](
+			httpClient,
+			baseURL+UserServiceGetUserWebhookDeliveryProcedure,
+			connect.WithSchema(userServiceMethods.ByName("GetUserWebhookDelivery")),
+			connect.WithClientOptions(opts...),
+		),
+		replayUserWebhookDelivery: connect.NewClient[api.ReplayUserWebhookDeliveryRequest, api.UserWebhookDelivery](
+			httpClient,
+			baseURL+UserServiceReplayUserWebhookDeliveryProcedure,
+			connect.WithSchema(userServiceMethods.ByName("ReplayUserWebhookDelivery")),
+			connect.WithClientOptions(opts...),
+		),
 		listLinkedIdentities: connect.NewClient[api.ListLinkedIdentitiesRequest, api.ListLinkedIdentitiesResponse](
 			httpClient,
 			baseURL+UserServiceListLinkedIdentitiesProcedure,
@@ -488,6 +527,9 @@ type userServiceClient struct {
 	updateUserWebhook           *connect.Client[api.UpdateUserWebhookRequest, api.UserWebhook]
 	deleteUserWebhook           *connect.Client[api.DeleteUserWebhookRequest, emptypb.Empty]
 	getUserWebhookSigningSecret *connect.Client[api.GetUserWebhookSigningSecretRequest, api.GetUserWebhookSigningSecretResponse]
+	listUserWebhookDeliveries   *connect.Client[api.ListUserWebhookDeliveriesRequest, api.ListUserWebhookDeliveriesResponse]
+	getUserWebhookDelivery      *connect.Client[api.GetUserWebhookDeliveryRequest, api.UserWebhookDelivery]
+	replayUserWebhookDelivery   *connect.Client[api.ReplayUserWebhookDeliveryRequest, api.UserWebhookDelivery]
 	listLinkedIdentities        *connect.Client[api.ListLinkedIdentitiesRequest, api.ListLinkedIdentitiesResponse]
 	getLinkedIdentity           *connect.Client[api.GetLinkedIdentityRequest, api.LinkedIdentity]
 	createLinkedIdentity        *connect.Client[api.CreateLinkedIdentityRequest, api.LinkedIdentity]
@@ -624,6 +666,21 @@ func (c *userServiceClient) GetUserWebhookSigningSecret(ctx context.Context, req
 	return c.getUserWebhookSigningSecret.CallUnary(ctx, req)
 }
 
+// ListUserWebhookDeliveries calls memos.api.UserService.ListUserWebhookDeliveries.
+func (c *userServiceClient) ListUserWebhookDeliveries(ctx context.Context, req *connect.Request[api.ListUserWebhookDeliveriesRequest]) (*connect.Response[api.ListUserWebhookDeliveriesResponse], error) {
+	return c.listUserWebhookDeliveries.CallUnary(ctx, req)
+}
+
+// GetUserWebhookDelivery calls memos.api.UserService.GetUserWebhookDelivery.
+func (c *userServiceClient) GetUserWebhookDelivery(ctx context.Context, req *connect.Request[api.GetUserWebhookDeliveryRequest]) (*connect.Response[api.UserWebhookDelivery], error) {
+	return c.getUserWebhookDelivery.CallUnary(ctx, req)
+}
+
+// ReplayUserWebhookDelivery calls memos.api.UserService.ReplayUserWebhookDelivery.
+func (c *userServiceClient) ReplayUserWebhookDelivery(ctx context.Context, req *connect.Request[api.ReplayUserWebhookDeliveryRequest]) (*connect.Response[api.UserWebhookDelivery], error) {
+	return c.replayUserWebhookDelivery.CallUnary(ctx, req)
+}
+
 // ListLinkedIdentities calls memos.api.UserService.ListLinkedIdentities.
 func (c *userServiceClient) ListLinkedIdentities(ctx context.Context, req *connect.Request[api.ListLinkedIdentitiesRequest]) (*connect.Response[api.ListLinkedIdentitiesResponse], error) {
 	return c.listLinkedIdentities.CallUnary(ctx, req)
@@ -742,6 +799,18 @@ type UserServiceHandler interface {
 	// the owner may call it. The secret is returned only through this call; it
 	// is never included in List, Create or Update responses.
 	GetUserWebhookSigningSecret(context.Context, *connect.Request[api.GetUserWebhookSigningSecretRequest]) (*connect.Response[api.GetUserWebhookSigningSecretResponse], error)
+	// ListUserWebhookDeliveries lists the lifecycle delivery records of one
+	// webhook, newest first. Only the webhook owner or an instance admin may
+	// call it. Records of a deleted webhook remain readable for admins.
+	ListUserWebhookDeliveries(context.Context, *connect.Request[api.ListUserWebhookDeliveriesRequest]) (*connect.Response[api.ListUserWebhookDeliveriesResponse], error)
+	// GetUserWebhookDelivery gets one webhook delivery record, including its
+	// state and the last failure reason. Only the webhook owner or an instance
+	// admin may call it.
+	GetUserWebhookDelivery(context.Context, *connect.Request[api.GetUserWebhookDeliveryRequest]) (*connect.Response[api.UserWebhookDelivery], error)
+	// ReplayUserWebhookDelivery requeues an abandoned delivery for a fresh
+	// delivery sequence. Succeeded and in-flight deliveries cannot be replayed.
+	// Only the webhook owner or an instance admin may call it.
+	ReplayUserWebhookDelivery(context.Context, *connect.Request[api.ReplayUserWebhookDeliveryRequest]) (*connect.Response[api.UserWebhookDelivery], error)
 	// ListLinkedIdentities lists the SSO identities linked to a user. The user
 	// and admins may call it.
 	ListLinkedIdentities(context.Context, *connect.Request[api.ListLinkedIdentitiesRequest]) (*connect.Response[api.ListLinkedIdentitiesResponse], error)
@@ -938,6 +1007,24 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(userServiceMethods.ByName("GetUserWebhookSigningSecret")),
 		connect.WithHandlerOptions(opts...),
 	)
+	userServiceListUserWebhookDeliveriesHandler := connect.NewUnaryHandler(
+		UserServiceListUserWebhookDeliveriesProcedure,
+		svc.ListUserWebhookDeliveries,
+		connect.WithSchema(userServiceMethods.ByName("ListUserWebhookDeliveries")),
+		connect.WithHandlerOptions(opts...),
+	)
+	userServiceGetUserWebhookDeliveryHandler := connect.NewUnaryHandler(
+		UserServiceGetUserWebhookDeliveryProcedure,
+		svc.GetUserWebhookDelivery,
+		connect.WithSchema(userServiceMethods.ByName("GetUserWebhookDelivery")),
+		connect.WithHandlerOptions(opts...),
+	)
+	userServiceReplayUserWebhookDeliveryHandler := connect.NewUnaryHandler(
+		UserServiceReplayUserWebhookDeliveryProcedure,
+		svc.ReplayUserWebhookDelivery,
+		connect.WithSchema(userServiceMethods.ByName("ReplayUserWebhookDelivery")),
+		connect.WithHandlerOptions(opts...),
+	)
 	userServiceListLinkedIdentitiesHandler := connect.NewUnaryHandler(
 		UserServiceListLinkedIdentitiesProcedure,
 		svc.ListLinkedIdentities,
@@ -1044,6 +1131,12 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 			userServiceDeleteUserWebhookHandler.ServeHTTP(w, r)
 		case UserServiceGetUserWebhookSigningSecretProcedure:
 			userServiceGetUserWebhookSigningSecretHandler.ServeHTTP(w, r)
+		case UserServiceListUserWebhookDeliveriesProcedure:
+			userServiceListUserWebhookDeliveriesHandler.ServeHTTP(w, r)
+		case UserServiceGetUserWebhookDeliveryProcedure:
+			userServiceGetUserWebhookDeliveryHandler.ServeHTTP(w, r)
+		case UserServiceReplayUserWebhookDeliveryProcedure:
+			userServiceReplayUserWebhookDeliveryHandler.ServeHTTP(w, r)
 		case UserServiceListLinkedIdentitiesProcedure:
 			userServiceListLinkedIdentitiesHandler.ServeHTTP(w, r)
 		case UserServiceGetLinkedIdentityProcedure:
@@ -1169,6 +1262,18 @@ func (UnimplementedUserServiceHandler) DeleteUserWebhook(context.Context, *conne
 
 func (UnimplementedUserServiceHandler) GetUserWebhookSigningSecret(context.Context, *connect.Request[api.GetUserWebhookSigningSecretRequest]) (*connect.Response[api.GetUserWebhookSigningSecretResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.UserService.GetUserWebhookSigningSecret is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) ListUserWebhookDeliveries(context.Context, *connect.Request[api.ListUserWebhookDeliveriesRequest]) (*connect.Response[api.ListUserWebhookDeliveriesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.UserService.ListUserWebhookDeliveries is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) GetUserWebhookDelivery(context.Context, *connect.Request[api.GetUserWebhookDeliveryRequest]) (*connect.Response[api.UserWebhookDelivery], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.UserService.GetUserWebhookDelivery is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) ReplayUserWebhookDelivery(context.Context, *connect.Request[api.ReplayUserWebhookDeliveryRequest]) (*connect.Response[api.UserWebhookDelivery], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.UserService.ReplayUserWebhookDelivery is not implemented"))
 }
 
 func (UnimplementedUserServiceHandler) ListLinkedIdentities(context.Context, *connect.Request[api.ListLinkedIdentitiesRequest]) (*connect.Response[api.ListLinkedIdentitiesResponse], error) {

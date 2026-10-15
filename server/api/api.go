@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/usememos/memos/core/notification"
+	"github.com/usememos/memos/core/webhookdelivery"
 	"github.com/usememos/memos/internal/linkmeta"
 	"github.com/usememos/memos/internal/profile"
 	"github.com/usememos/memos/internal/ratelimit"
@@ -86,6 +87,11 @@ type APIService struct {
 	thumbnailSemaphore       *semaphore.Weighted
 	imageProcessingSemaphore *semaphore.Weighted
 
+	// WebhookDeliveries drives the persistent outbound webhook delivery
+	// ledger. While no retry policy is configured submissions keep the legacy
+	// in-memory queue behavior.
+	WebhookDeliveries *webhookdelivery.Manager
+
 	// instanceStatsCache memoizes GetInstanceStats results for instanceStatsCacheTTL.
 	instanceStatsCache instanceStatsCache
 
@@ -110,9 +116,23 @@ func NewAPIService(secret string, profile *profile.Profile, store *store.Store) 
 		RateLimiter:              newProfileRateLimiter(profile),
 		thumbnailSemaphore:       semaphore.NewWeighted(3), // Limit to 3 concurrent thumbnail generations
 		imageProcessingSemaphore: semaphore.NewWeighted(2),
+		WebhookDeliveries:        webhookdelivery.New(store),
 	}
 	service.linkMetadataFetcher = linkmeta.NewHTMLMetaFetcher()
 	return service
+}
+
+// StartBackgroundServices starts background workers owned by the API service.
+// It is called once after the HTTP gateway has been wired.
+func (s *APIService) StartBackgroundServices(ctx context.Context) error {
+	return s.WebhookDeliveries.Start(ctx)
+}
+
+// StopBackgroundServices stops background workers before the store closes.
+func (s *APIService) StopBackgroundServices() {
+	if s.WebhookDeliveries != nil {
+		s.WebhookDeliveries.Close()
+	}
 }
 
 // newGatewayMarshaler mirrors grpc-gateway's default JSON marshaler with one

@@ -297,6 +297,14 @@ func validateAndNormalizeDeploymentInstanceSetting(setting *storepb.InstanceSett
 		if err := ValidateInstanceUsageLimitsSetting(usageLimits); err != nil {
 			return errors.Wrap(err, "usageLimitsSetting")
 		}
+	case storepb.InstanceSettingKey_WEBHOOK:
+		webhook := setting.GetWebhookSetting()
+		if webhook == nil {
+			return errors.New("webhookSetting must be populated for key WEBHOOK")
+		}
+		if err := ValidateInstanceWebhookSetting(webhook); err != nil {
+			return errors.Wrap(err, "webhookSetting")
+		}
 	case storepb.InstanceSettingKey_BASIC, storepb.InstanceSettingKey_TAGS:
 		return errors.Errorf("key %s cannot be deployment configured", setting.Key)
 	default:

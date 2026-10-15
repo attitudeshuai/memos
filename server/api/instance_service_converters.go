@@ -40,6 +40,10 @@ func convertInstanceSettingFromStore(setting *storepb.InstanceSetting) *apipb.In
 		instanceSetting.Value = &apipb.InstanceSetting_AccessSetting_{
 			AccessSetting: convertInstanceAccessSettingFromStore(setting.GetAccessSetting()),
 		}
+	case *storepb.InstanceSetting_WebhookSetting:
+		instanceSetting.Value = &apipb.InstanceSetting_WebhookSetting_{
+			WebhookSetting: convertInstanceWebhookSettingFromStore(setting.GetWebhookSetting()),
+		}
 	default:
 		// Leave Value unset for unsupported setting variants.
 	}
@@ -83,10 +87,48 @@ func convertInstanceSettingToStore(setting *apipb.InstanceSetting) *storepb.Inst
 		instanceSetting.Value = &storepb.InstanceSetting_AccessSetting{
 			AccessSetting: convertInstanceAccessSettingToStore(setting.GetAccessSetting()),
 		}
+	case storepb.InstanceSettingKey_WEBHOOK:
+		instanceSetting.Value = &storepb.InstanceSetting_WebhookSetting{
+			WebhookSetting: convertInstanceWebhookSettingToStore(setting.GetWebhookSetting()),
+		}
 	default:
 		// Keep the default GeneralSetting value
 	}
 	return instanceSetting
+}
+
+func convertInstanceWebhookSettingFromStore(setting *storepb.InstanceWebhookSetting) *apipb.InstanceSetting_WebhookSetting {
+	if setting == nil {
+		return nil
+	}
+	webhookSetting := &apipb.InstanceSetting_WebhookSetting{
+		LedgerRetentionCount: setting.GetLedgerRetentionCount(),
+	}
+	if policy := setting.GetRetryPolicy(); policy != nil {
+		webhookSetting.RetryPolicy = &apipb.InstanceSetting_WebhookSetting_RetryPolicy{
+			MaxAttempts:        policy.GetMaxAttempts(),
+			BackoffBaseSeconds: policy.GetBackoffBaseSeconds(),
+			BackoffMaxSeconds:  policy.GetBackoffMaxSeconds(),
+		}
+	}
+	return webhookSetting
+}
+
+func convertInstanceWebhookSettingToStore(setting *apipb.InstanceSetting_WebhookSetting) *storepb.InstanceWebhookSetting {
+	if setting == nil {
+		return nil
+	}
+	webhookSetting := &storepb.InstanceWebhookSetting{
+		LedgerRetentionCount: setting.GetLedgerRetentionCount(),
+	}
+	if policy := setting.GetRetryPolicy(); policy != nil {
+		webhookSetting.RetryPolicy = &storepb.WebhookRetryPolicy{
+			MaxAttempts:        policy.GetMaxAttempts(),
+			BackoffBaseSeconds: policy.GetBackoffBaseSeconds(),
+			BackoffMaxSeconds:  policy.GetBackoffMaxSeconds(),
+		}
+	}
+	return webhookSetting
 }
 
 func convertInstanceAccessSettingFromStore(setting *storepb.InstanceAccessSetting) *apipb.InstanceSetting_AccessSetting {

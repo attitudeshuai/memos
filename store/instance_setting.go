@@ -50,6 +50,8 @@ func (s *Store) UpsertInstanceSetting(ctx context.Context, upsert *storepb.Insta
 		valueBytes, err = protojson.Marshal(upsert.GetAiSetting())
 	} else if upsert.Key == storepb.InstanceSettingKey_ACCESS {
 		valueBytes, err = protojson.Marshal(upsert.GetAccessSetting())
+	} else if upsert.Key == storepb.InstanceSettingKey_WEBHOOK {
+		valueBytes, err = protojson.Marshal(upsert.GetWebhookSetting())
 	} else {
 		return nil, errors.Errorf("unsupported instance setting key: %v", upsert.Key)
 	}
@@ -309,6 +311,61 @@ func (s *Store) GetInstanceTagsSetting(ctx context.Context) (*storepb.InstanceTa
 	return instanceTagsSetting, nil
 }
 
+// Bounds and defaults for the outbound webhook delivery lifecycle policy.
+const (
+	// WebhookMaxAttemptsLimit is the largest accepted total attempt count.
+	WebhookMaxAttemptsLimit = 50
+	// WebhookBackoffBaseDefaultSeconds is the default delay before the second attempt.
+	WebhookBackoffBaseDefaultSeconds = 30
+	// WebhookBackoffBaseMaxSeconds bounds the declared backoff base.
+	WebhookBackoffBaseMaxSeconds = 3600
+	// WebhookBackoffMaxDefaultSeconds is the default exponential backoff cap.
+	WebhookBackoffMaxDefaultSeconds = 3600
+	// WebhookBackoffMaxMaxSeconds bounds the declared backoff cap.
+	WebhookBackoffMaxMaxSeconds = 86400
+	// WebhookLedgerRetentionDefault is the default number of terminal records
+	// kept per webhook.
+	WebhookLedgerRetentionDefault = 100
+	// WebhookLedgerRetentionLimit bounds the declared retention count.
+	WebhookLedgerRetentionLimit = 10000
+)
+
+// ValidateInstanceWebhookSetting checks the rules an outbound webhook setting
+// must meet before it is stored, whether it comes from the API or from a
+// deployment configuration. Zero values mean "disabled/default" and are
+// accepted; explicit values must stay inside their declared ranges.
+func ValidateInstanceWebhookSetting(setting *storepb.InstanceWebhookSetting) error {
+	if setting == nil {
+		return errors.New("webhook setting is required")
+	}
+	retention := setting.GetLedgerRetentionCount()
+	if retention < 0 || retention > WebhookLedgerRetentionLimit {
+		return errors.Errorf("webhook ledger_retention_count must be between 0 and %d, got %d", WebhookLedgerRetentionLimit, retention)
+	}
+
+	policy := setting.GetRetryPolicy()
+	if policy == nil {
+		return nil
+	}
+	maxAttempts := policy.GetMaxAttempts()
+	if maxAttempts < 0 || maxAttempts > WebhookMaxAttemptsLimit {
+		return errors.Errorf("webhook retry_policy.max_attempts must be between 0 and %d, got %d", WebhookMaxAttemptsLimit, maxAttempts)
+	}
+
+	base := policy.GetBackoffBaseSeconds()
+	if base < 0 || base > WebhookBackoffBaseMaxSeconds {
+		return errors.Errorf("webhook retry_policy.backoff_base_seconds must be between 0 and %d, got %d", WebhookBackoffBaseMaxSeconds, base)
+	}
+	capSeconds := policy.GetBackoffMaxSeconds()
+	if capSeconds < 0 || capSeconds > WebhookBackoffMaxMaxSeconds {
+		return errors.Errorf("webhook retry_policy.backoff_max_seconds must be between 0 and %d, got %d", WebhookBackoffMaxMaxSeconds, capSeconds)
+	}
+	if base > 0 && capSeconds > 0 && capSeconds < base {
+		return errors.Errorf("webhook retry_policy.backoff_max_seconds (%d) must not be smaller than backoff_base_seconds (%d)", capSeconds, base)
+	}
+	return nil
+}
+
 // ValidateInstanceNotificationSetting checks the rules a notification setting
 // must meet before it is stored, whether it comes from the API or from
 // deployment configuration: enabled email needs a host, a positive port, and
@@ -367,6 +424,26 @@ func (s *Store) GetInstanceAISetting(ctx context.Context) (*storepb.InstanceAISe
 		Value: &storepb.InstanceSetting_AiSetting{AiSetting: instanceAISetting},
 	})
 	return instanceAISetting, nil
+}
+
+// GetInstanceWebhookSetting gets the outbound webhook lifecycle setting. An
+// unset setting is returned as an empty message, which disables the ledger.
+func (s *Store) GetInstanceWebhookSetting(ctx context.Context) (*storepb.InstanceWebhookSetting, error) {
+	instanceSetting, err := s.GetInstanceSetting(ctx, &FindInstanceSetting{
+		Name: storepb.InstanceSettingKey_WEBHOOK.String(),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get webhook setting")
+	}
+	webhookSetting := &storepb.InstanceWebhookSetting{}
+	if instanceSetting != nil {
+		webhookSetting = instanceSetting.GetWebhookSetting()
+	}
+	s.cacheInstanceSetting(ctx, &storepb.InstanceSetting{
+		Key:   storepb.InstanceSettingKey_WEBHOOK,
+		Value: &storepb.InstanceSetting_WebhookSetting{WebhookSetting: webhookSetting},
+	})
+	return webhookSetting, nil
 }
 
 const (
@@ -466,6 +543,12 @@ func convertInstanceSettingFromRaw(instanceSettingRaw *InstanceSetting) (*storep
 			return nil, err
 		}
 		instanceSetting.Value = &storepb.InstanceSetting_UsageLimitsSetting{UsageLimitsSetting: usageLimitsSetting}
+	case storepb.InstanceSettingKey_WEBHOOK.String():
+		webhookSetting := &storepb.InstanceWebhookSetting{}
+		if err := protojsonUnmarshaler.Unmarshal([]byte(instanceSettingRaw.Value), webhookSetting); err != nil {
+			return nil, err
+		}
+		instanceSetting.Value = &storepb.InstanceSetting_WebhookSetting{WebhookSetting: webhookSetting}
 	default:
 		// Skip unsupported instance setting key.
 		return nil, nil

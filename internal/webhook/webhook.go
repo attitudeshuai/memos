@@ -108,6 +108,13 @@ type Request struct {
 	SigningSecret string
 	// Payload is the value encoded as the JSON request body.
 	Payload any
+
+	// UserID is the owner of the originating webhook. Post does not read it;
+	// the lifecycle ledger uses it to attribute and retain delivery records.
+	UserID int32
+	// WebhookID is the identifier of the originating webhook. Post does not
+	// read it; the lifecycle ledger uses it to attribute and retain records.
+	WebhookID string
 }
 
 // resolveSigningKey returns the raw HMAC key for a signing secret. Secrets using

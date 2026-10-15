@@ -3210,6 +3210,159 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/users/{user}/webhooks/{webhook}/deliveries:
+        get:
+            tags:
+                - UserService
+            description: |-
+                ListUserWebhookDeliveries lists the lifecycle delivery records of one
+                 webhook, newest first. Only the webhook owner or an instance admin may
+                 call it. Records of a deleted webhook remain readable for admins.
+            operationId: UserService_ListUserWebhookDeliveries
+            parameters:
+                - name: user
+                  in: path
+                  description: The user id.
+                  required: true
+                  schema:
+                    type: string
+                - name: webhook
+                  in: path
+                  description: The webhook id.
+                  required: true
+                  schema:
+                    type: string
+                - name: state
+                  in: query
+                  description: |-
+                    Optional. Filter deliveries by lifecycle state. When unspecified, every
+                     state is returned.
+                  schema:
+                    enum:
+                        - WEBHOOK_DELIVERY_STATE_UNSPECIFIED
+                        - PENDING
+                        - DELIVERING
+                        - SUCCEEDED
+                        - RETRYING
+                        - ABANDONED
+                    type: string
+                    format: enum
+                - name: pageSize
+                  in: query
+                  description: |-
+                    Optional. The maximum number of deliveries to return. The service may
+                     return fewer. Defaults to 50 and is coerced to at most 200.
+                  schema:
+                    type: integer
+                    format: int32
+                - name: pageToken
+                  in: query
+                  description: |-
+                    Optional. A page token from a previous call. Provide it to retrieve the
+                     next page.
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListUserWebhookDeliveriesResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/users/{user}/webhooks/{webhook}/deliveries/{delivery}:
+        get:
+            tags:
+                - UserService
+            description: |-
+                GetUserWebhookDelivery gets one webhook delivery record, including its
+                 state and the last failure reason. Only the webhook owner or an instance
+                 admin may call it.
+            operationId: UserService_GetUserWebhookDelivery
+            parameters:
+                - name: user
+                  in: path
+                  description: The user id.
+                  required: true
+                  schema:
+                    type: string
+                - name: webhook
+                  in: path
+                  description: The webhook id.
+                  required: true
+                  schema:
+                    type: string
+                - name: delivery
+                  in: path
+                  description: The delivery id.
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UserWebhookDelivery'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/users/{user}/webhooks/{webhook}/deliveries/{delivery}:replay:
+        post:
+            tags:
+                - UserService
+            description: |-
+                ReplayUserWebhookDelivery requeues an abandoned delivery for a fresh
+                 delivery sequence. Succeeded and in-flight deliveries cannot be replayed.
+                 Only the webhook owner or an instance admin may call it.
+            operationId: UserService_ReplayUserWebhookDelivery
+            parameters:
+                - name: user
+                  in: path
+                  description: The user id.
+                  required: true
+                  schema:
+                    type: string
+                - name: webhook
+                  in: path
+                  description: The webhook id.
+                  required: true
+                  schema:
+                    type: string
+                - name: delivery
+                  in: path
+                  description: The delivery id.
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/ReplayUserWebhookDeliveryRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UserWebhookDelivery'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/users/{user}/webhooks/{webhook}:getSigningSecret:
         get:
             tags:
@@ -4093,6 +4246,10 @@ components:
                     allOf:
                         - $ref: '#/components/schemas/InstanceSetting_AccessSetting'
                     description: The value of the ACCESS setting.
+                webhookSetting:
+                    allOf:
+                        - $ref: '#/components/schemas/InstanceSetting_WebhookSetting'
+                    description: The value of the WEBHOOK setting.
             description: InstanceSetting is one group of instance-wide settings, selected by its key.
         InstanceSetting_AIProviderConfig:
             type: object
@@ -4309,6 +4466,23 @@ components:
                     type: string
                     description: A default spelling and vocabulary hint passed to the provider. Hidden from non-admins.
             description: TranscriptionConfig is the speech-to-text feature configuration.
+        InstanceSetting_WebhookSetting:
+            type: object
+            properties:
+                retryPolicy:
+                    allOf:
+                        - $ref: '#/components/schemas/WebhookSetting_RetryPolicy'
+                    description: The bounded retry policy for failed deliveries.
+                ledgerRetentionCount:
+                    type: integer
+                    description: |-
+                        The maximum number of terminal delivery records kept per webhook.
+                         0 means the server default (100).
+                    format: int32
+            description: |-
+                WebhookSetting is the outbound webhook delivery lifecycle configuration.
+                 When retry_policy is unset or max_attempts is 0, deliveries keep the
+                 legacy fire-and-forget behavior and no delivery ledger is written.
         InstanceStats:
             type: object
             properties:
@@ -4583,6 +4757,18 @@ components:
                         $ref: '#/components/schemas/UserStats'
                     description: The statistics, one entry per user.
             description: Response message for UserService.ListUserStats.
+        ListUserWebhookDeliveriesResponse:
+            type: object
+            properties:
+                deliveries:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/UserWebhookDelivery'
+                    description: The deliveries, newest first.
+                nextPageToken:
+                    type: string
+                    description: A token to retrieve the next page. Empty when there are no more pages.
+            description: Response message for UserService.ListUserWebhookDeliveries.
         ListUserWebhooksResponse:
             type: object
             properties:
@@ -5117,6 +5303,17 @@ components:
                     description: When the new access token expires.
                     format: date-time
             description: Response message for AuthService.RefreshToken.
+        ReplayUserWebhookDeliveryRequest:
+            required:
+                - name
+            type: object
+            properties:
+                name:
+                    type: string
+                    description: |-
+                        Required. The resource name of the abandoned delivery to requeue.
+                         Format: users/{user}/webhooks/{webhook}/deliveries/{delivery}
+            description: Request message for UserService.ReplayUserWebhookDelivery.
         SetMemoAttachmentsRequest:
             required:
                 - name
@@ -6012,6 +6209,78 @@ components:
                     description: Output only. The last update timestamp. Currently never set.
                     format: date-time
             description: UserWebhook is a webhook owned by a user.
+        UserWebhookDelivery:
+            type: object
+            properties:
+                name:
+                    type: string
+                    description: |-
+                        Identifier. The resource name of the delivery.
+                         Format: users/{user}/webhooks/{webhook}/deliveries/{delivery}
+                state:
+                    readOnly: true
+                    enum:
+                        - WEBHOOK_DELIVERY_STATE_UNSPECIFIED
+                        - PENDING
+                        - DELIVERING
+                        - SUCCEEDED
+                        - RETRYING
+                        - ABANDONED
+                    type: string
+                    description: Output only. The current lifecycle state.
+                    format: enum
+                activityType:
+                    readOnly: true
+                    type: string
+                    description: Output only. The activity type delivered, for example "memos.memo.created".
+                url:
+                    readOnly: true
+                    type: string
+                    description: Output only. The destination URL the delivery is posted to.
+                attempts:
+                    readOnly: true
+                    type: integer
+                    description: Output only. The number of delivery attempts made so far.
+                    format: int32
+                maxAttempts:
+                    readOnly: true
+                    type: integer
+                    description: |-
+                        Output only. The total attempts allowed for this delivery (snapshot of
+                         the instance policy at registration time).
+                    format: int32
+                createTime:
+                    readOnly: true
+                    type: string
+                    description: Output only. The registration timestamp.
+                    format: date-time
+                updateTime:
+                    readOnly: true
+                    type: string
+                    description: Output only. The last state-change timestamp.
+                    format: date-time
+                nextAttemptTime:
+                    readOnly: true
+                    type: string
+                    description: Output only. When the delivery becomes eligible for the next attempt.
+                    format: date-time
+                lastAttemptTime:
+                    readOnly: true
+                    type: string
+                    description: Output only. When the most recent attempt started.
+                    format: date-time
+                settleTime:
+                    readOnly: true
+                    type: string
+                    description: Output only. When the delivery reached a terminal state.
+                    format: date-time
+                lastError:
+                    readOnly: true
+                    type: string
+                    description: |-
+                        Output only. The failure reason of the most recent attempt; empty while
+                         the delivery has never failed or after it succeeded.
+            description: UserWebhookDelivery is one lifecycle-tracked delivery of a user webhook.
         VideoMetadata:
             type: object
             properties:
@@ -6020,6 +6289,28 @@ components:
                     description: The duration of the video in seconds.
                     format: double
             description: VideoMetadata is metadata recorded by the source of a video.
+        WebhookSetting_RetryPolicy:
+            type: object
+            properties:
+                maxAttempts:
+                    type: integer
+                    description: |-
+                        Total delivery attempts including the first one. 0 disables the
+                         delivery ledger. Between 1 and 50 when enabled.
+                    format: int32
+                backoffBaseSeconds:
+                    type: string
+                    description: |-
+                        Delay before the second attempt, in seconds. 0 means the server
+                         default (30 seconds).
+                backoffMaxSeconds:
+                    type: string
+                    description: |-
+                        Upper bound of the backoff growth, in seconds. 0 means the server
+                         default (3600 seconds). Never smaller than backoff_base_seconds.
+            description: |-
+                RetryPolicy configures exponential backoff retries:
+                 min(backoff_base_seconds * 2^(attempts-1), backoff_max_seconds).
 tags:
     - name: AIService
       description: AIService runs AI tasks through the AI providers configured on the instance.

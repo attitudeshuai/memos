@@ -29,6 +29,8 @@ enum InstanceSettingKey {
   // USAGE_LIMITS is the key for per-user usage limits. Store only; exposed
   // through the usageLimits API, never through the instance settings API.
   USAGE_LIMITS = 9;
+  // WEBHOOK is the key for outbound webhook delivery lifecycle settings.
+  WEBHOOK = 10;
 }
 
 message InstanceSetting {
@@ -43,6 +45,7 @@ message InstanceSetting {
     InstanceAISetting ai_setting = 8;
     InstanceAccessSetting access_setting = 9;
     InstanceUsageLimitsSetting usage_limits_setting = 10;
+    InstanceWebhookSetting webhook_setting = 11;
   }
 }
 
@@ -281,4 +284,35 @@ message InstanceUsageLimitsSetting {
     // UPLOAD_BYTES limits the size of one uploaded file.
     UPLOAD_BYTES = 4;
   }
+}
+
+// InstanceWebhookSetting configures the delivery lifecycle of outbound
+// webhooks. When retry_policy is unset or max_attempts is 0 the lifecycle
+// ledger is disabled and webhook delivery keeps its legacy fire-and-forget
+// behavior.
+message InstanceWebhookSetting {
+  // retry_policy declares the bounded retry behavior for failed deliveries.
+  // Presence of a policy with max_attempts >= 1 enables the delivery ledger.
+  WebhookRetryPolicy retry_policy = 1;
+  // ledger_retention_count bounds how many terminal (SUCCEEDED, ABANDONED)
+  // delivery records are kept per webhook; older terminal records are pruned.
+  // 0 means the server default (100). Must be between 1 and 10000 when set.
+  int32 ledger_retention_count = 2;
+}
+
+// WebhookRetryPolicy is the bounded retry policy for outbound webhook
+// deliveries. Delays follow exponential backoff:
+// min(backoff_base_seconds * 2^(attempts-1), backoff_max_seconds).
+message WebhookRetryPolicy {
+  // max_attempts is the total number of delivery attempts including the first
+  // one. 0 disables the lifecycle ledger. Must be between 1 and 50 when
+  // enabled; 1 registers deliveries in the ledger without retrying.
+  int32 max_attempts = 1;
+  // backoff_base_seconds is the delay before the second attempt. 0 means the
+  // server default (30 seconds). Must be between 1 and 3600 when set.
+  int64 backoff_base_seconds = 2;
+  // backoff_max_seconds caps the exponential backoff growth. 0 means the
+  // server default (3600 seconds). Must be between 1 and 86400 when set and
+  // never smaller than backoff_base_seconds.
+  int64 backoff_max_seconds = 3;
 }

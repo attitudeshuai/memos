@@ -47,21 +47,24 @@ const (
 	// USAGE_LIMITS is the key for per-user usage limits. Store only; exposed
 	// through the usageLimits API, never through the instance settings API.
 	InstanceSettingKey_USAGE_LIMITS InstanceSettingKey = 9
+	// WEBHOOK is the key for outbound webhook delivery lifecycle settings.
+	InstanceSettingKey_WEBHOOK InstanceSettingKey = 10
 )
 
 // Enum value maps for InstanceSettingKey.
 var (
 	InstanceSettingKey_name = map[int32]string{
-		0: "INSTANCE_SETTING_KEY_UNSPECIFIED",
-		1: "BASIC",
-		2: "GENERAL",
-		3: "STORAGE",
-		4: "MEMO_RELATED",
-		5: "TAGS",
-		6: "NOTIFICATION",
-		7: "AI",
-		8: "ACCESS",
-		9: "USAGE_LIMITS",
+		0:  "INSTANCE_SETTING_KEY_UNSPECIFIED",
+		1:  "BASIC",
+		2:  "GENERAL",
+		3:  "STORAGE",
+		4:  "MEMO_RELATED",
+		5:  "TAGS",
+		6:  "NOTIFICATION",
+		7:  "AI",
+		8:  "ACCESS",
+		9:  "USAGE_LIMITS",
+		10: "WEBHOOK",
 	}
 	InstanceSettingKey_value = map[string]int32{
 		"INSTANCE_SETTING_KEY_UNSPECIFIED": 0,
@@ -74,6 +77,7 @@ var (
 		"AI":                               7,
 		"ACCESS":                           8,
 		"USAGE_LIMITS":                     9,
+		"WEBHOOK":                          10,
 	}
 )
 
@@ -387,6 +391,7 @@ type InstanceSetting struct {
 	//	*InstanceSetting_AiSetting
 	//	*InstanceSetting_AccessSetting
 	//	*InstanceSetting_UsageLimitsSetting
+	//	*InstanceSetting_WebhookSetting
 	Value         isInstanceSetting_Value `protobuf_oneof:"value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -517,6 +522,15 @@ func (x *InstanceSetting) GetUsageLimitsSetting() *InstanceUsageLimitsSetting {
 	return nil
 }
 
+func (x *InstanceSetting) GetWebhookSetting() *InstanceWebhookSetting {
+	if x != nil {
+		if x, ok := x.Value.(*InstanceSetting_WebhookSetting); ok {
+			return x.WebhookSetting
+		}
+	}
+	return nil
+}
+
 type isInstanceSetting_Value interface {
 	isInstanceSetting_Value()
 }
@@ -557,6 +571,10 @@ type InstanceSetting_UsageLimitsSetting struct {
 	UsageLimitsSetting *InstanceUsageLimitsSetting `protobuf:"bytes,10,opt,name=usage_limits_setting,json=usageLimitsSetting,proto3,oneof"`
 }
 
+type InstanceSetting_WebhookSetting struct {
+	WebhookSetting *InstanceWebhookSetting `protobuf:"bytes,11,opt,name=webhook_setting,json=webhookSetting,proto3,oneof"`
+}
+
 func (*InstanceSetting_BasicSetting) isInstanceSetting_Value() {}
 
 func (*InstanceSetting_GeneralSetting) isInstanceSetting_Value() {}
@@ -574,6 +592,8 @@ func (*InstanceSetting_AiSetting) isInstanceSetting_Value() {}
 func (*InstanceSetting_AccessSetting) isInstanceSetting_Value() {}
 
 func (*InstanceSetting_UsageLimitsSetting) isInstanceSetting_Value() {}
+
+func (*InstanceSetting_WebhookSetting) isInstanceSetting_Value() {}
 
 type InstanceBasicSetting struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1584,6 +1604,138 @@ func (x *InstanceUsageLimitsSetting) GetLimits() []*InstanceUsageLimitsSetting_U
 	return nil
 }
 
+// InstanceWebhookSetting configures the delivery lifecycle of outbound
+// webhooks. When retry_policy is unset or max_attempts is 0 the lifecycle
+// ledger is disabled and webhook delivery keeps its legacy fire-and-forget
+// behavior.
+type InstanceWebhookSetting struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// retry_policy declares the bounded retry behavior for failed deliveries.
+	// Presence of a policy with max_attempts >= 1 enables the delivery ledger.
+	RetryPolicy *WebhookRetryPolicy `protobuf:"bytes,1,opt,name=retry_policy,json=retryPolicy,proto3" json:"retry_policy,omitempty"`
+	// ledger_retention_count bounds how many terminal (SUCCEEDED, ABANDONED)
+	// delivery records are kept per webhook; older terminal records are pruned.
+	// 0 means the server default (100). Must be between 1 and 10000 when set.
+	LedgerRetentionCount int32 `protobuf:"varint,2,opt,name=ledger_retention_count,json=ledgerRetentionCount,proto3" json:"ledger_retention_count,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *InstanceWebhookSetting) Reset() {
+	*x = InstanceWebhookSetting{}
+	mi := &file_store_instance_setting_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstanceWebhookSetting) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstanceWebhookSetting) ProtoMessage() {}
+
+func (x *InstanceWebhookSetting) ProtoReflect() protoreflect.Message {
+	mi := &file_store_instance_setting_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstanceWebhookSetting.ProtoReflect.Descriptor instead.
+func (*InstanceWebhookSetting) Descriptor() ([]byte, []int) {
+	return file_store_instance_setting_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *InstanceWebhookSetting) GetRetryPolicy() *WebhookRetryPolicy {
+	if x != nil {
+		return x.RetryPolicy
+	}
+	return nil
+}
+
+func (x *InstanceWebhookSetting) GetLedgerRetentionCount() int32 {
+	if x != nil {
+		return x.LedgerRetentionCount
+	}
+	return 0
+}
+
+// WebhookRetryPolicy is the bounded retry policy for outbound webhook
+// deliveries. Delays follow exponential backoff:
+// min(backoff_base_seconds * 2^(attempts-1), backoff_max_seconds).
+type WebhookRetryPolicy struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// max_attempts is the total number of delivery attempts including the first
+	// one. 0 disables the lifecycle ledger. Must be between 1 and 50 when
+	// enabled; 1 registers deliveries in the ledger without retrying.
+	MaxAttempts int32 `protobuf:"varint,1,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
+	// backoff_base_seconds is the delay before the second attempt. 0 means the
+	// server default (30 seconds). Must be between 1 and 3600 when set.
+	BackoffBaseSeconds int64 `protobuf:"varint,2,opt,name=backoff_base_seconds,json=backoffBaseSeconds,proto3" json:"backoff_base_seconds,omitempty"`
+	// backoff_max_seconds caps the exponential backoff growth. 0 means the
+	// server default (3600 seconds). Must be between 1 and 86400 when set and
+	// never smaller than backoff_base_seconds.
+	BackoffMaxSeconds int64 `protobuf:"varint,3,opt,name=backoff_max_seconds,json=backoffMaxSeconds,proto3" json:"backoff_max_seconds,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *WebhookRetryPolicy) Reset() {
+	*x = WebhookRetryPolicy{}
+	mi := &file_store_instance_setting_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WebhookRetryPolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WebhookRetryPolicy) ProtoMessage() {}
+
+func (x *WebhookRetryPolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_store_instance_setting_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WebhookRetryPolicy.ProtoReflect.Descriptor instead.
+func (*WebhookRetryPolicy) Descriptor() ([]byte, []int) {
+	return file_store_instance_setting_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *WebhookRetryPolicy) GetMaxAttempts() int32 {
+	if x != nil {
+		return x.MaxAttempts
+	}
+	return 0
+}
+
+func (x *WebhookRetryPolicy) GetBackoffBaseSeconds() int64 {
+	if x != nil {
+		return x.BackoffBaseSeconds
+	}
+	return 0
+}
+
+func (x *WebhookRetryPolicy) GetBackoffMaxSeconds() int64 {
+	if x != nil {
+		return x.BackoffMaxSeconds
+	}
+	return 0
+}
+
 type InstanceNotificationSetting_EmailSetting struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
@@ -1602,7 +1754,7 @@ type InstanceNotificationSetting_EmailSetting struct {
 
 func (x *InstanceNotificationSetting_EmailSetting) Reset() {
 	*x = InstanceNotificationSetting_EmailSetting{}
-	mi := &file_store_instance_setting_proto_msgTypes[17]
+	mi := &file_store_instance_setting_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1614,7 +1766,7 @@ func (x *InstanceNotificationSetting_EmailSetting) String() string {
 func (*InstanceNotificationSetting_EmailSetting) ProtoMessage() {}
 
 func (x *InstanceNotificationSetting_EmailSetting) ProtoReflect() protoreflect.Message {
-	mi := &file_store_instance_setting_proto_msgTypes[17]
+	mi := &file_store_instance_setting_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1722,7 +1874,7 @@ type InstanceUsageLimitsSetting_UsageLimit struct {
 
 func (x *InstanceUsageLimitsSetting_UsageLimit) Reset() {
 	*x = InstanceUsageLimitsSetting_UsageLimit{}
-	mi := &file_store_instance_setting_proto_msgTypes[18]
+	mi := &file_store_instance_setting_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1734,7 +1886,7 @@ func (x *InstanceUsageLimitsSetting_UsageLimit) String() string {
 func (*InstanceUsageLimitsSetting_UsageLimit) ProtoMessage() {}
 
 func (x *InstanceUsageLimitsSetting_UsageLimit) ProtoReflect() protoreflect.Message {
-	mi := &file_store_instance_setting_proto_msgTypes[18]
+	mi := &file_store_instance_setting_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1834,7 +1986,7 @@ var File_store_instance_setting_proto protoreflect.FileDescriptor
 
 const file_store_instance_setting_proto_rawDesc = "" +
 	"\n" +
-	"\x1cstore/instance_setting.proto\x12\vmemos.store\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17google/type/color.proto\"\xa5\x06\n" +
+	"\x1cstore/instance_setting.proto\x12\vmemos.store\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17google/type/color.proto\"\xf5\x06\n" +
 	"\x0fInstanceSetting\x121\n" +
 	"\x03key\x18\x01 \x01(\x0e2\x1f.memos.store.InstanceSettingKeyR\x03key\x12H\n" +
 	"\rbasic_setting\x18\x02 \x01(\v2!.memos.store.InstanceBasicSettingH\x00R\fbasicSetting\x12N\n" +
@@ -1847,7 +1999,8 @@ const file_store_instance_setting_proto_rawDesc = "" +
 	"ai_setting\x18\b \x01(\v2\x1e.memos.store.InstanceAISettingH\x00R\taiSetting\x12K\n" +
 	"\x0eaccess_setting\x18\t \x01(\v2\".memos.store.InstanceAccessSettingH\x00R\raccessSetting\x12[\n" +
 	"\x14usage_limits_setting\x18\n" +
-	" \x01(\v2'.memos.store.InstanceUsageLimitsSettingH\x00R\x12usageLimitsSettingB\a\n" +
+	" \x01(\v2'.memos.store.InstanceUsageLimitsSettingH\x00R\x12usageLimitsSetting\x12N\n" +
+	"\x0fwebhook_setting\x18\v \x01(\v2#.memos.store.InstanceWebhookSettingH\x00R\x0ewebhookSettingB\a\n" +
 	"\x05value\"\\\n" +
 	"\x14InstanceBasicSetting\x12\x1d\n" +
 	"\n" +
@@ -1955,7 +2108,14 @@ const file_store_instance_setting_proto_rawDesc = "" +
 	"MEMO_COUNT\x10\x01\x12\x16\n" +
 	"\x12MEMO_CONTENT_BYTES\x10\x02\x12\x11\n" +
 	"\rSTORAGE_BYTES\x10\x03\x12\x10\n" +
-	"\fUPLOAD_BYTES\x10\x04*\xb3\x01\n" +
+	"\fUPLOAD_BYTES\x10\x04\"\x92\x01\n" +
+	"\x16InstanceWebhookSetting\x12B\n" +
+	"\fretry_policy\x18\x01 \x01(\v2\x1f.memos.store.WebhookRetryPolicyR\vretryPolicy\x124\n" +
+	"\x16ledger_retention_count\x18\x02 \x01(\x05R\x14ledgerRetentionCount\"\x99\x01\n" +
+	"\x12WebhookRetryPolicy\x12!\n" +
+	"\fmax_attempts\x18\x01 \x01(\x05R\vmaxAttempts\x120\n" +
+	"\x14backoff_base_seconds\x18\x02 \x01(\x03R\x12backoffBaseSeconds\x12.\n" +
+	"\x13backoff_max_seconds\x18\x03 \x01(\x03R\x11backoffMaxSeconds*\xc0\x01\n" +
 	"\x12InstanceSettingKey\x12$\n" +
 	" INSTANCE_SETTING_KEY_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05BASIC\x10\x01\x12\v\n" +
@@ -1967,7 +2127,9 @@ const file_store_instance_setting_proto_rawDesc = "" +
 	"\x02AI\x10\a\x12\n" +
 	"\n" +
 	"\x06ACCESS\x10\b\x12\x10\n" +
-	"\fUSAGE_LIMITS\x10\t*s\n" +
+	"\fUSAGE_LIMITS\x10\t\x12\v\n" +
+	"\aWEBHOOK\x10\n" +
+	"*s\n" +
 	"\vStorageType\x12\x1c\n" +
 	"\x18STORAGE_TYPE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15STORAGE_TYPE_DATABASE\x10\x01\x12\x16\n" +
@@ -1998,7 +2160,7 @@ func file_store_instance_setting_proto_rawDescGZIP() []byte {
 }
 
 var file_store_instance_setting_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_store_instance_setting_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_store_instance_setting_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_store_instance_setting_proto_goTypes = []any{
 	(InstanceSettingKey)(0),                          // 0: memos.store.InstanceSettingKey
 	(StorageType)(0),                                 // 1: memos.store.StorageType
@@ -2022,12 +2184,14 @@ var file_store_instance_setting_proto_goTypes = []any{
 	(*TranscriptionConfig)(nil),                      // 19: memos.store.TranscriptionConfig
 	(*InstanceAccessSetting)(nil),                    // 20: memos.store.InstanceAccessSetting
 	(*InstanceUsageLimitsSetting)(nil),               // 21: memos.store.InstanceUsageLimitsSetting
-	nil,                                              // 22: memos.store.InstanceTagsSetting.TagsEntry
-	(*InstanceNotificationSetting_EmailSetting)(nil), // 23: memos.store.InstanceNotificationSetting.EmailSetting
-	(*InstanceUsageLimitsSetting_UsageLimit)(nil),    // 24: memos.store.InstanceUsageLimitsSetting.UsageLimit
-	(*color.Color)(nil),                              // 25: google.type.Color
-	(*emptypb.Empty)(nil),                            // 26: google.protobuf.Empty
-	(*timestamppb.Timestamp)(nil),                    // 27: google.protobuf.Timestamp
+	(*InstanceWebhookSetting)(nil),                   // 22: memos.store.InstanceWebhookSetting
+	(*WebhookRetryPolicy)(nil),                       // 23: memos.store.WebhookRetryPolicy
+	nil,                                              // 24: memos.store.InstanceTagsSetting.TagsEntry
+	(*InstanceNotificationSetting_EmailSetting)(nil), // 25: memos.store.InstanceNotificationSetting.EmailSetting
+	(*InstanceUsageLimitsSetting_UsageLimit)(nil),    // 26: memos.store.InstanceUsageLimitsSetting.UsageLimit
+	(*color.Color)(nil),                              // 27: google.type.Color
+	(*emptypb.Empty)(nil),                            // 28: google.protobuf.Empty
+	(*timestamppb.Timestamp)(nil),                    // 29: google.protobuf.Timestamp
 }
 var file_store_instance_setting_proto_depIdxs = []int32{
 	0,  // 0: memos.store.InstanceSetting.key:type_name -> memos.store.InstanceSettingKey
@@ -2040,30 +2204,32 @@ var file_store_instance_setting_proto_depIdxs = []int32{
 	17, // 7: memos.store.InstanceSetting.ai_setting:type_name -> memos.store.InstanceAISetting
 	20, // 8: memos.store.InstanceSetting.access_setting:type_name -> memos.store.InstanceAccessSetting
 	21, // 9: memos.store.InstanceSetting.usage_limits_setting:type_name -> memos.store.InstanceUsageLimitsSetting
-	9,  // 10: memos.store.InstanceGeneralSetting.custom_profile:type_name -> memos.store.InstanceCustomProfile
-	1,  // 11: memos.store.Storage.type:type_name -> memos.store.StorageType
-	12, // 12: memos.store.Storage.s3_config:type_name -> memos.store.StorageS3Config
-	4,  // 13: memos.store.InstanceStorageSetting.storage_type:type_name -> memos.store.InstanceStorageSetting.StorageType
-	12, // 14: memos.store.InstanceStorageSetting.s3_config:type_name -> memos.store.StorageS3Config
-	10, // 15: memos.store.InstanceStorageSetting.storages:type_name -> memos.store.Storage
-	25, // 16: memos.store.InstanceTagMetadata.background_color:type_name -> google.type.Color
-	22, // 17: memos.store.InstanceTagsSetting.tags:type_name -> memos.store.InstanceTagsSetting.TagsEntry
-	23, // 18: memos.store.InstanceNotificationSetting.email:type_name -> memos.store.InstanceNotificationSetting.EmailSetting
-	18, // 19: memos.store.InstanceAISetting.providers:type_name -> memos.store.AIProviderConfig
-	19, // 20: memos.store.InstanceAISetting.transcription:type_name -> memos.store.TranscriptionConfig
-	2,  // 21: memos.store.AIProviderConfig.type:type_name -> memos.store.AIProviderType
-	3,  // 22: memos.store.InstanceAccessSetting.access_mode:type_name -> memos.store.InstanceAccessMode
-	24, // 23: memos.store.InstanceUsageLimitsSetting.limits:type_name -> memos.store.InstanceUsageLimitsSetting.UsageLimit
-	14, // 24: memos.store.InstanceTagsSetting.TagsEntry.value:type_name -> memos.store.InstanceTagMetadata
-	5,  // 25: memos.store.InstanceUsageLimitsSetting.UsageLimit.metric:type_name -> memos.store.InstanceUsageLimitsSetting.Metric
-	26, // 26: memos.store.InstanceUsageLimitsSetting.UsageLimit.all_users:type_name -> google.protobuf.Empty
-	27, // 27: memos.store.InstanceUsageLimitsSetting.UsageLimit.create_time:type_name -> google.protobuf.Timestamp
-	27, // 28: memos.store.InstanceUsageLimitsSetting.UsageLimit.update_time:type_name -> google.protobuf.Timestamp
-	29, // [29:29] is the sub-list for method output_type
-	29, // [29:29] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	22, // 10: memos.store.InstanceSetting.webhook_setting:type_name -> memos.store.InstanceWebhookSetting
+	9,  // 11: memos.store.InstanceGeneralSetting.custom_profile:type_name -> memos.store.InstanceCustomProfile
+	1,  // 12: memos.store.Storage.type:type_name -> memos.store.StorageType
+	12, // 13: memos.store.Storage.s3_config:type_name -> memos.store.StorageS3Config
+	4,  // 14: memos.store.InstanceStorageSetting.storage_type:type_name -> memos.store.InstanceStorageSetting.StorageType
+	12, // 15: memos.store.InstanceStorageSetting.s3_config:type_name -> memos.store.StorageS3Config
+	10, // 16: memos.store.InstanceStorageSetting.storages:type_name -> memos.store.Storage
+	27, // 17: memos.store.InstanceTagMetadata.background_color:type_name -> google.type.Color
+	24, // 18: memos.store.InstanceTagsSetting.tags:type_name -> memos.store.InstanceTagsSetting.TagsEntry
+	25, // 19: memos.store.InstanceNotificationSetting.email:type_name -> memos.store.InstanceNotificationSetting.EmailSetting
+	18, // 20: memos.store.InstanceAISetting.providers:type_name -> memos.store.AIProviderConfig
+	19, // 21: memos.store.InstanceAISetting.transcription:type_name -> memos.store.TranscriptionConfig
+	2,  // 22: memos.store.AIProviderConfig.type:type_name -> memos.store.AIProviderType
+	3,  // 23: memos.store.InstanceAccessSetting.access_mode:type_name -> memos.store.InstanceAccessMode
+	26, // 24: memos.store.InstanceUsageLimitsSetting.limits:type_name -> memos.store.InstanceUsageLimitsSetting.UsageLimit
+	23, // 25: memos.store.InstanceWebhookSetting.retry_policy:type_name -> memos.store.WebhookRetryPolicy
+	14, // 26: memos.store.InstanceTagsSetting.TagsEntry.value:type_name -> memos.store.InstanceTagMetadata
+	5,  // 27: memos.store.InstanceUsageLimitsSetting.UsageLimit.metric:type_name -> memos.store.InstanceUsageLimitsSetting.Metric
+	28, // 28: memos.store.InstanceUsageLimitsSetting.UsageLimit.all_users:type_name -> google.protobuf.Empty
+	29, // 29: memos.store.InstanceUsageLimitsSetting.UsageLimit.create_time:type_name -> google.protobuf.Timestamp
+	29, // 30: memos.store.InstanceUsageLimitsSetting.UsageLimit.update_time:type_name -> google.protobuf.Timestamp
+	31, // [31:31] is the sub-list for method output_type
+	31, // [31:31] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_store_instance_setting_proto_init() }
@@ -2081,11 +2247,12 @@ func file_store_instance_setting_proto_init() {
 		(*InstanceSetting_AiSetting)(nil),
 		(*InstanceSetting_AccessSetting)(nil),
 		(*InstanceSetting_UsageLimitsSetting)(nil),
+		(*InstanceSetting_WebhookSetting)(nil),
 	}
 	file_store_instance_setting_proto_msgTypes[4].OneofWrappers = []any{
 		(*Storage_S3Config)(nil),
 	}
-	file_store_instance_setting_proto_msgTypes[18].OneofWrappers = []any{
+	file_store_instance_setting_proto_msgTypes[20].OneofWrappers = []any{
 		(*InstanceUsageLimitsSetting_UsageLimit_AllUsers)(nil),
 		(*InstanceUsageLimitsSetting_UsageLimit_UserId)(nil),
 	}
@@ -2095,7 +2262,7 @@ func file_store_instance_setting_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_store_instance_setting_proto_rawDesc), len(file_store_instance_setting_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   19,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

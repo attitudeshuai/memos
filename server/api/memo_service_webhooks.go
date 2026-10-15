@@ -78,7 +78,7 @@ func (s *APIService) DispatchMemoCommentCreatedWebhook(
 		return err
 	}
 	for _, hook := range webhooks {
-		webhook.PostAsync(newMemoWebhookRequest(hook, "memos.memo.comment.created", commentMessage))
+		s.dispatchWebhook(ctx, newMemoWebhookRequest(relatedMemoCreatorID, hook, "memos.memo.comment.created", commentMessage))
 	}
 	return nil
 }
@@ -97,9 +97,16 @@ func (s *APIService) dispatchMemoRelatedWebhook(ctx context.Context, memo *apipb
 		return err
 	}
 	for _, hook := range webhooks {
-		webhook.PostAsync(newMemoWebhookRequest(hook, activityType, memo))
+		s.dispatchWebhook(ctx, newMemoWebhookRequest(creatorID, hook, activityType, memo))
 	}
 	return nil
+}
+
+// dispatchWebhook submits one outbound webhook through the lifecycle manager.
+// With no retry policy configured it behaves as the legacy fire-and-forget
+// queue; with a policy it registers the delivery in the persistent ledger.
+func (s *APIService) dispatchWebhook(ctx context.Context, request *webhook.Request) {
+	s.WebhookDeliveries.Submit(ctx, request)
 }
 
 // memoWebhookPayload is the JSON body delivered to user webhooks for memo
@@ -115,11 +122,13 @@ type memoWebhookPayload struct {
 	Memo *apipb.Memo `json:"memo"`
 }
 
-func newMemoWebhookRequest(hook *storepb.WebhooksUserSetting_Webhook, activityType string, memo *apipb.Memo) *webhook.Request {
+func newMemoWebhookRequest(ownerID int32, hook *storepb.WebhooksUserSetting_Webhook, activityType string, memo *apipb.Memo) *webhook.Request {
 	return &webhook.Request{
 		URL:           hook.Url,
 		Label:         activityType,
 		SigningSecret: hook.SigningSecret,
+		UserID:        ownerID,
+		WebhookID:     hook.Id,
 		Payload: &memoWebhookPayload{
 			URL:          hook.Url,
 			ActivityType: activityType,

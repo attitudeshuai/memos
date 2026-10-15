@@ -243,6 +243,15 @@ func TestLoadDeploymentConfigurationSupportsEveryProvisionableSettingGroup(t *te
 				AccessMode: storepb.InstanceAccessMode_INSTANCE_ACCESS_MODE_PUBLIC,
 			}},
 		},
+		"memos-instance-setting-webhook.json": {
+			Key: storepb.InstanceSettingKey_WEBHOOK,
+			Value: &storepb.InstanceSetting_WebhookSetting{WebhookSetting: &storepb.InstanceWebhookSetting{
+				RetryPolicy: &storepb.WebhookRetryPolicy{
+					MaxAttempts: 4, BackoffBaseSeconds: 5, BackoffMaxSeconds: 60,
+				},
+				LedgerRetentionCount: 20,
+			}},
+		},
 	}
 	for filename, setting := range settings {
 		writeDeploymentMessage(t, filepath.Join(dir, filename), setting)
@@ -258,6 +267,11 @@ func TestLoadDeploymentConfigurationSupportsEveryProvisionableSettingGroup(t *te
 	access, err := stores.GetInstanceAccessSetting(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, storepb.InstanceAccessMode_INSTANCE_ACCESS_MODE_PUBLIC, access.AccessMode)
+	webhook, err := stores.GetInstanceWebhookSetting(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, int32(4), webhook.GetRetryPolicy().GetMaxAttempts())
+	assert.Equal(t, int64(5), webhook.GetRetryPolicy().GetBackoffBaseSeconds())
+	assert.Equal(t, int32(20), webhook.GetLedgerRetentionCount())
 }
 
 func TestLoadDeploymentConfigurationRejectsInvalidSettingResources(t *testing.T) {
@@ -272,6 +286,9 @@ func TestLoadDeploymentConfigurationRejectsInvalidSettingResources(t *testing.T)
 		{name: "invalid week start", content: `{"key":"GENERAL","generalSetting":{"weekStartDayOffset":-2}}`, errorString: "must be between -1 and 6"},
 		{name: "unspecified access mode", content: `{"key":"ACCESS","accessSetting":{}}`, errorString: "accessSetting.accessMode must be PRIVATE or PUBLIC"},
 		{name: "mismatched access oneof", content: `{"key":"ACCESS","generalSetting":{}}`, errorString: "accessSetting must be populated"},
+		{name: "invalid webhook attempts", content: `{"key":"WEBHOOK","webhookSetting":{"retryPolicy":{"maxAttempts":99}}}`, errorString: "max_attempts must be between 0 and 50"},
+		{name: "invalid webhook retention", content: `{"key":"WEBHOOK","webhookSetting":{"ledgerRetentionCount":10001}}`, errorString: "ledger_retention_count must be between 0 and 10000"},
+		{name: "mismatched webhook oneof", content: `{"key":"WEBHOOK","accessSetting":{}}`, errorString: "webhookSetting must be populated"},
 		{name: "unknown field", content: `{"key":"GENERAL","generalSetting":{},"typo":true}`, errorString: `unknown field "typo"`},
 	}
 	for _, test := range tests {

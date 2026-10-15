@@ -112,6 +112,10 @@ func NewServer(ctx context.Context, profile *profile.Profile, store *store.Store
 	}
 	mcpService.RegisterRoutes(echoServer)
 
+	if err := apiService.StartBackgroundServices(ctx); err != nil {
+		return nil, errors.Wrap(err, "failed to start background services")
+	}
+
 	return s, nil
 }
 
@@ -160,6 +164,9 @@ func (s *Server) Shutdown(ctx context.Context) {
 	s.closeLongLivedConnections()
 	s.shutdownHTTPServer(ctx)
 	s.apiService.CloseUploads()
+	// Stop background workers while the database is still available so their
+	// final settlements can land; interrupted attempts are recovered next start.
+	s.apiService.StopBackgroundServices()
 
 	// Close database connection.
 	if err := s.Store.Close(); err != nil {

@@ -342,6 +342,30 @@ func (s *ConnectServiceHandler) GetUserWebhookSigningSecret(ctx context.Context,
 	return connect.NewResponse(resp), nil
 }
 
+func (s *ConnectServiceHandler) ListUserWebhookDeliveries(ctx context.Context, req *connect.Request[apipb.ListUserWebhookDeliveriesRequest]) (*connect.Response[apipb.ListUserWebhookDeliveriesResponse], error) {
+	resp, err := s.APIService.ListUserWebhookDeliveries(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (s *ConnectServiceHandler) GetUserWebhookDelivery(ctx context.Context, req *connect.Request[apipb.GetUserWebhookDeliveryRequest]) (*connect.Response[apipb.UserWebhookDelivery], error) {
+	resp, err := s.APIService.GetUserWebhookDelivery(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (s *ConnectServiceHandler) ReplayUserWebhookDelivery(ctx context.Context, req *connect.Request[apipb.ReplayUserWebhookDeliveryRequest]) (*connect.Response[apipb.UserWebhookDelivery], error) {
+	resp, err := s.APIService.ReplayUserWebhookDelivery(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (s *ConnectServiceHandler) ListUserNotifications(ctx context.Context, req *connect.Request[apipb.ListUserNotificationsRequest]) (*connect.Response[apipb.ListUserNotificationsResponse], error) {
 	resp, err := s.APIService.ListUserNotifications(ctx, req.Msg)
 	if err != nil {

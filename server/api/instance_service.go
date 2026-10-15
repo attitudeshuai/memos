@@ -140,6 +140,10 @@ func (s *APIService) getInstanceSettingByName(ctx context.Context, name string, 
 		var setting *storepb.InstanceAccessSetting
 		setting, err = s.Store.GetInstanceAccessSetting(ctx)
 		instanceSetting = &storepb.InstanceSetting{Key: instanceSettingKey, Value: &storepb.InstanceSetting_AccessSetting{AccessSetting: setting}}
+	case storepb.InstanceSettingKey_WEBHOOK:
+		var setting *storepb.InstanceWebhookSetting
+		setting, err = s.Store.GetInstanceWebhookSetting(ctx)
+		instanceSetting = &storepb.InstanceSetting{Key: instanceSettingKey, Value: &storepb.InstanceSetting_WebhookSetting{WebhookSetting: setting}}
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "unsupported instance setting key: %v", instanceSettingKey)
 	}
@@ -270,6 +274,12 @@ func (s *APIService) UpdateInstanceSetting(ctx context.Context, request *apipb.U
 			return nil, status.Error(codes.FailedPrecondition, err.Error())
 		}
 		return nil, status.Errorf(codes.Internal, "failed to upsert instance setting: %v", err)
+	}
+
+	if updateSetting.Key == storepb.InstanceSettingKey_WEBHOOK && s.WebhookDeliveries != nil {
+		if reloadErr := s.WebhookDeliveries.ReloadPolicy(ctx); reloadErr != nil {
+			return nil, status.Errorf(codes.Internal, "failed to apply webhook setting: %v", reloadErr)
+		}
 	}
 
 	return convertInstanceSettingFromStore(instanceSetting), nil
