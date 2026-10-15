@@ -169,6 +169,20 @@ message InstanceTagsSetting {
 
 message InstanceNotificationSetting {
   EmailSetting email = 1;
+  // Retention is the automatic cleanup policy for inbox notifications. Zero
+  // values disable that rule.
+  RetentionSetting retention = 2;
+
+  // RetentionSetting declares how long notifications are kept. Both limits
+  // apply independently to every receiver and to notifications of every
+  // status, including unread ones.
+  message RetentionSetting {
+    // Delete notifications older than this many days. 0 disables age cleanup.
+    int32 max_age_days = 1;
+    // Keep at most this many notifications per receiver, newest first. 0
+    // disables per-user count cleanup.
+    int32 max_per_user = 2;
+  }
 
   message EmailSetting {
     bool enabled = 1;

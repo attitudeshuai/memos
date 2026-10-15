@@ -89,6 +89,12 @@ const (
 	// UserServiceDeleteUserNotificationProcedure is the fully-qualified name of the UserService's
 	// DeleteUserNotification RPC.
 	UserServiceDeleteUserNotificationProcedure = "/memos.api.UserService/DeleteUserNotification"
+	// UserServiceBatchUpdateUserNotificationsProcedure is the fully-qualified name of the UserService's
+	// BatchUpdateUserNotifications RPC.
+	UserServiceBatchUpdateUserNotificationsProcedure = "/memos.api.UserService/BatchUpdateUserNotifications"
+	// UserServiceBatchDeleteUserNotificationsProcedure is the fully-qualified name of the UserService's
+	// BatchDeleteUserNotifications RPC.
+	UserServiceBatchDeleteUserNotificationsProcedure = "/memos.api.UserService/BatchDeleteUserNotifications"
 	// UserServiceListUserWebhooksProcedure is the fully-qualified name of the UserService's
 	// ListUserWebhooks RPC.
 	UserServiceListUserWebhooksProcedure = "/memos.api.UserService/ListUserWebhooks"
@@ -191,6 +197,14 @@ type UserServiceClient interface {
 	// DeleteUserNotification permanently deletes a notification. Only the
 	// receiver may call it.
 	DeleteUserNotification(context.Context, *connect.Request[api.DeleteUserNotificationRequest]) (*connect.Response[emptypb.Empty], error)
+	// BatchUpdateUserNotifications marks every notification matched by scope as
+	// read (ARCHIVED). Only the receiver may call it. Only notifications that are
+	// currently UNREAD change, and the response count reflects those rows.
+	BatchUpdateUserNotifications(context.Context, *connect.Request[api.BatchUpdateUserNotificationsRequest]) (*connect.Response[api.BatchUpdateUserNotificationsResponse], error)
+	// BatchDeleteUserNotifications permanently deletes every notification
+	// matched by scope regardless of its status. Only the receiver may call it.
+	// The response count reflects the rows actually deleted.
+	BatchDeleteUserNotifications(context.Context, *connect.Request[api.BatchDeleteUserNotificationsRequest]) (*connect.Response[api.BatchDeleteUserNotificationsResponse], error)
 	// ListUserWebhooks lists a user's webhooks. Only the user may call it.
 	ListUserWebhooks(context.Context, *connect.Request[api.ListUserWebhooksRequest]) (*connect.Response[api.ListUserWebhooksResponse], error)
 	// CreateUserWebhook creates a webhook for a user. Only the user may call it.
@@ -374,6 +388,18 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(userServiceMethods.ByName("DeleteUserNotification")),
 			connect.WithClientOptions(opts...),
 		),
+		batchUpdateUserNotifications: connect.NewClient[api.BatchUpdateUserNotificationsRequest, api.BatchUpdateUserNotificationsResponse](
+			httpClient,
+			baseURL+UserServiceBatchUpdateUserNotificationsProcedure,
+			connect.WithSchema(userServiceMethods.ByName("BatchUpdateUserNotifications")),
+			connect.WithClientOptions(opts...),
+		),
+		batchDeleteUserNotifications: connect.NewClient[api.BatchDeleteUserNotificationsRequest, api.BatchDeleteUserNotificationsResponse](
+			httpClient,
+			baseURL+UserServiceBatchDeleteUserNotificationsProcedure,
+			connect.WithSchema(userServiceMethods.ByName("BatchDeleteUserNotifications")),
+			connect.WithClientOptions(opts...),
+		),
 		listUserWebhooks: connect.NewClient[api.ListUserWebhooksRequest, api.ListUserWebhooksResponse](
 			httpClient,
 			baseURL+UserServiceListUserWebhooksProcedure,
@@ -463,40 +489,42 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // userServiceClient implements UserServiceClient.
 type userServiceClient struct {
-	listUsers                   *connect.Client[api.ListUsersRequest, api.ListUsersResponse]
-	getUser                     *connect.Client[api.GetUserRequest, api.User]
-	batchGetUsers               *connect.Client[api.BatchGetUsersRequest, api.BatchGetUsersResponse]
-	createUser                  *connect.Client[api.CreateUserRequest, api.User]
-	updateUser                  *connect.Client[api.UpdateUserRequest, api.User]
-	deleteUser                  *connect.Client[api.DeleteUserRequest, emptypb.Empty]
-	listUserSettings            *connect.Client[api.ListUserSettingsRequest, api.ListUserSettingsResponse]
-	getUserSetting              *connect.Client[api.GetUserSettingRequest, api.UserSetting]
-	updateUserSetting           *connect.Client[api.UpdateUserSettingRequest, api.UserSetting]
-	listUserStats               *connect.Client[api.ListUserStatsRequest, api.ListUserStatsResponse]
-	getUserStats                *connect.Client[api.GetUserStatsRequest, api.UserStats]
-	getUserUsage                *connect.Client[api.GetUserUsageRequest, api.UserUsage]
-	listMemoViews               *connect.Client[api.ListMemoViewsRequest, api.ListMemoViewsResponse]
-	getMemoView                 *connect.Client[api.GetMemoViewRequest, api.MemoView]
-	createMemoView              *connect.Client[api.CreateMemoViewRequest, api.MemoView]
-	updateMemoView              *connect.Client[api.UpdateMemoViewRequest, api.MemoView]
-	deleteMemoView              *connect.Client[api.DeleteMemoViewRequest, emptypb.Empty]
-	listUserNotifications       *connect.Client[api.ListUserNotificationsRequest, api.ListUserNotificationsResponse]
-	updateUserNotification      *connect.Client[api.UpdateUserNotificationRequest, api.UserNotification]
-	deleteUserNotification      *connect.Client[api.DeleteUserNotificationRequest, emptypb.Empty]
-	listUserWebhooks            *connect.Client[api.ListUserWebhooksRequest, api.ListUserWebhooksResponse]
-	createUserWebhook           *connect.Client[api.CreateUserWebhookRequest, api.UserWebhook]
-	updateUserWebhook           *connect.Client[api.UpdateUserWebhookRequest, api.UserWebhook]
-	deleteUserWebhook           *connect.Client[api.DeleteUserWebhookRequest, emptypb.Empty]
-	getUserWebhookSigningSecret *connect.Client[api.GetUserWebhookSigningSecretRequest, api.GetUserWebhookSigningSecretResponse]
-	listLinkedIdentities        *connect.Client[api.ListLinkedIdentitiesRequest, api.ListLinkedIdentitiesResponse]
-	getLinkedIdentity           *connect.Client[api.GetLinkedIdentityRequest, api.LinkedIdentity]
-	createLinkedIdentity        *connect.Client[api.CreateLinkedIdentityRequest, api.LinkedIdentity]
-	deleteLinkedIdentity        *connect.Client[api.DeleteLinkedIdentityRequest, emptypb.Empty]
-	listPersonalAccessTokens    *connect.Client[api.ListPersonalAccessTokensRequest, api.ListPersonalAccessTokensResponse]
-	createPersonalAccessToken   *connect.Client[api.CreatePersonalAccessTokenRequest, api.CreatePersonalAccessTokenResponse]
-	deletePersonalAccessToken   *connect.Client[api.DeletePersonalAccessTokenRequest, emptypb.Empty]
-	exportMemos                 *connect.Client[api.ExportMemosRequest, httpbody.HttpBody]
-	importMemos                 *connect.Client[api.ImportMemosRequest, api.ImportMemosResponse]
+	listUsers                    *connect.Client[api.ListUsersRequest, api.ListUsersResponse]
+	getUser                      *connect.Client[api.GetUserRequest, api.User]
+	batchGetUsers                *connect.Client[api.BatchGetUsersRequest, api.BatchGetUsersResponse]
+	createUser                   *connect.Client[api.CreateUserRequest, api.User]
+	updateUser                   *connect.Client[api.UpdateUserRequest, api.User]
+	deleteUser                   *connect.Client[api.DeleteUserRequest, emptypb.Empty]
+	listUserSettings             *connect.Client[api.ListUserSettingsRequest, api.ListUserSettingsResponse]
+	getUserSetting               *connect.Client[api.GetUserSettingRequest, api.UserSetting]
+	updateUserSetting            *connect.Client[api.UpdateUserSettingRequest, api.UserSetting]
+	listUserStats                *connect.Client[api.ListUserStatsRequest, api.ListUserStatsResponse]
+	getUserStats                 *connect.Client[api.GetUserStatsRequest, api.UserStats]
+	getUserUsage                 *connect.Client[api.GetUserUsageRequest, api.UserUsage]
+	listMemoViews                *connect.Client[api.ListMemoViewsRequest, api.ListMemoViewsResponse]
+	getMemoView                  *connect.Client[api.GetMemoViewRequest, api.MemoView]
+	createMemoView               *connect.Client[api.CreateMemoViewRequest, api.MemoView]
+	updateMemoView               *connect.Client[api.UpdateMemoViewRequest, api.MemoView]
+	deleteMemoView               *connect.Client[api.DeleteMemoViewRequest, emptypb.Empty]
+	listUserNotifications        *connect.Client[api.ListUserNotificationsRequest, api.ListUserNotificationsResponse]
+	updateUserNotification       *connect.Client[api.UpdateUserNotificationRequest, api.UserNotification]
+	deleteUserNotification       *connect.Client[api.DeleteUserNotificationRequest, emptypb.Empty]
+	batchUpdateUserNotifications *connect.Client[api.BatchUpdateUserNotificationsRequest, api.BatchUpdateUserNotificationsResponse]
+	batchDeleteUserNotifications *connect.Client[api.BatchDeleteUserNotificationsRequest, api.BatchDeleteUserNotificationsResponse]
+	listUserWebhooks             *connect.Client[api.ListUserWebhooksRequest, api.ListUserWebhooksResponse]
+	createUserWebhook            *connect.Client[api.CreateUserWebhookRequest, api.UserWebhook]
+	updateUserWebhook            *connect.Client[api.UpdateUserWebhookRequest, api.UserWebhook]
+	deleteUserWebhook            *connect.Client[api.DeleteUserWebhookRequest, emptypb.Empty]
+	getUserWebhookSigningSecret  *connect.Client[api.GetUserWebhookSigningSecretRequest, api.GetUserWebhookSigningSecretResponse]
+	listLinkedIdentities         *connect.Client[api.ListLinkedIdentitiesRequest, api.ListLinkedIdentitiesResponse]
+	getLinkedIdentity            *connect.Client[api.GetLinkedIdentityRequest, api.LinkedIdentity]
+	createLinkedIdentity         *connect.Client[api.CreateLinkedIdentityRequest, api.LinkedIdentity]
+	deleteLinkedIdentity         *connect.Client[api.DeleteLinkedIdentityRequest, emptypb.Empty]
+	listPersonalAccessTokens     *connect.Client[api.ListPersonalAccessTokensRequest, api.ListPersonalAccessTokensResponse]
+	createPersonalAccessToken    *connect.Client[api.CreatePersonalAccessTokenRequest, api.CreatePersonalAccessTokenResponse]
+	deletePersonalAccessToken    *connect.Client[api.DeletePersonalAccessTokenRequest, emptypb.Empty]
+	exportMemos                  *connect.Client[api.ExportMemosRequest, httpbody.HttpBody]
+	importMemos                  *connect.Client[api.ImportMemosRequest, api.ImportMemosResponse]
 }
 
 // ListUsers calls memos.api.UserService.ListUsers.
@@ -597,6 +625,16 @@ func (c *userServiceClient) UpdateUserNotification(ctx context.Context, req *con
 // DeleteUserNotification calls memos.api.UserService.DeleteUserNotification.
 func (c *userServiceClient) DeleteUserNotification(ctx context.Context, req *connect.Request[api.DeleteUserNotificationRequest]) (*connect.Response[emptypb.Empty], error) {
 	return c.deleteUserNotification.CallUnary(ctx, req)
+}
+
+// BatchUpdateUserNotifications calls memos.api.UserService.BatchUpdateUserNotifications.
+func (c *userServiceClient) BatchUpdateUserNotifications(ctx context.Context, req *connect.Request[api.BatchUpdateUserNotificationsRequest]) (*connect.Response[api.BatchUpdateUserNotificationsResponse], error) {
+	return c.batchUpdateUserNotifications.CallUnary(ctx, req)
+}
+
+// BatchDeleteUserNotifications calls memos.api.UserService.BatchDeleteUserNotifications.
+func (c *userServiceClient) BatchDeleteUserNotifications(ctx context.Context, req *connect.Request[api.BatchDeleteUserNotificationsRequest]) (*connect.Response[api.BatchDeleteUserNotificationsResponse], error) {
+	return c.batchDeleteUserNotifications.CallUnary(ctx, req)
 }
 
 // ListUserWebhooks calls memos.api.UserService.ListUserWebhooks.
@@ -729,6 +767,14 @@ type UserServiceHandler interface {
 	// DeleteUserNotification permanently deletes a notification. Only the
 	// receiver may call it.
 	DeleteUserNotification(context.Context, *connect.Request[api.DeleteUserNotificationRequest]) (*connect.Response[emptypb.Empty], error)
+	// BatchUpdateUserNotifications marks every notification matched by scope as
+	// read (ARCHIVED). Only the receiver may call it. Only notifications that are
+	// currently UNREAD change, and the response count reflects those rows.
+	BatchUpdateUserNotifications(context.Context, *connect.Request[api.BatchUpdateUserNotificationsRequest]) (*connect.Response[api.BatchUpdateUserNotificationsResponse], error)
+	// BatchDeleteUserNotifications permanently deletes every notification
+	// matched by scope regardless of its status. Only the receiver may call it.
+	// The response count reflects the rows actually deleted.
+	BatchDeleteUserNotifications(context.Context, *connect.Request[api.BatchDeleteUserNotificationsRequest]) (*connect.Response[api.BatchDeleteUserNotificationsResponse], error)
 	// ListUserWebhooks lists a user's webhooks. Only the user may call it.
 	ListUserWebhooks(context.Context, *connect.Request[api.ListUserWebhooksRequest]) (*connect.Response[api.ListUserWebhooksResponse], error)
 	// CreateUserWebhook creates a webhook for a user. Only the user may call it.
@@ -908,6 +954,18 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(userServiceMethods.ByName("DeleteUserNotification")),
 		connect.WithHandlerOptions(opts...),
 	)
+	userServiceBatchUpdateUserNotificationsHandler := connect.NewUnaryHandler(
+		UserServiceBatchUpdateUserNotificationsProcedure,
+		svc.BatchUpdateUserNotifications,
+		connect.WithSchema(userServiceMethods.ByName("BatchUpdateUserNotifications")),
+		connect.WithHandlerOptions(opts...),
+	)
+	userServiceBatchDeleteUserNotificationsHandler := connect.NewUnaryHandler(
+		UserServiceBatchDeleteUserNotificationsProcedure,
+		svc.BatchDeleteUserNotifications,
+		connect.WithSchema(userServiceMethods.ByName("BatchDeleteUserNotifications")),
+		connect.WithHandlerOptions(opts...),
+	)
 	userServiceListUserWebhooksHandler := connect.NewUnaryHandler(
 		UserServiceListUserWebhooksProcedure,
 		svc.ListUserWebhooks,
@@ -1034,6 +1092,10 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 			userServiceUpdateUserNotificationHandler.ServeHTTP(w, r)
 		case UserServiceDeleteUserNotificationProcedure:
 			userServiceDeleteUserNotificationHandler.ServeHTTP(w, r)
+		case UserServiceBatchUpdateUserNotificationsProcedure:
+			userServiceBatchUpdateUserNotificationsHandler.ServeHTTP(w, r)
+		case UserServiceBatchDeleteUserNotificationsProcedure:
+			userServiceBatchDeleteUserNotificationsHandler.ServeHTTP(w, r)
 		case UserServiceListUserWebhooksProcedure:
 			userServiceListUserWebhooksHandler.ServeHTTP(w, r)
 		case UserServiceCreateUserWebhookProcedure:
@@ -1149,6 +1211,14 @@ func (UnimplementedUserServiceHandler) UpdateUserNotification(context.Context, *
 
 func (UnimplementedUserServiceHandler) DeleteUserNotification(context.Context, *connect.Request[api.DeleteUserNotificationRequest]) (*connect.Response[emptypb.Empty], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.UserService.DeleteUserNotification is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) BatchUpdateUserNotifications(context.Context, *connect.Request[api.BatchUpdateUserNotificationsRequest]) (*connect.Response[api.BatchUpdateUserNotificationsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.UserService.BatchUpdateUserNotifications is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) BatchDeleteUserNotifications(context.Context, *connect.Request[api.BatchDeleteUserNotificationsRequest]) (*connect.Response[api.BatchDeleteUserNotificationsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.UserService.BatchDeleteUserNotifications is not implemented"))
 }
 
 func (UnimplementedUserServiceHandler) ListUserWebhooks(context.Context, *connect.Request[api.ListUserWebhooksRequest]) (*connect.Response[api.ListUserWebhooksResponse], error) {

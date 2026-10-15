@@ -20,17 +20,19 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	InstanceService_GetInstanceProfile_FullMethodName       = "/memos.api.InstanceService/GetInstanceProfile"
-	InstanceService_GetInstanceSetting_FullMethodName       = "/memos.api.InstanceService/GetInstanceSetting"
-	InstanceService_BatchGetInstanceSettings_FullMethodName = "/memos.api.InstanceService/BatchGetInstanceSettings"
-	InstanceService_UpdateInstanceSetting_FullMethodName    = "/memos.api.InstanceService/UpdateInstanceSetting"
-	InstanceService_TestInstanceEmailSetting_FullMethodName = "/memos.api.InstanceService/TestInstanceEmailSetting"
-	InstanceService_GetInstanceStats_FullMethodName         = "/memos.api.InstanceService/GetInstanceStats"
-	InstanceService_ListUsageLimits_FullMethodName          = "/memos.api.InstanceService/ListUsageLimits"
-	InstanceService_GetUsageLimit_FullMethodName            = "/memos.api.InstanceService/GetUsageLimit"
-	InstanceService_CreateUsageLimit_FullMethodName         = "/memos.api.InstanceService/CreateUsageLimit"
-	InstanceService_UpdateUsageLimit_FullMethodName         = "/memos.api.InstanceService/UpdateUsageLimit"
-	InstanceService_DeleteUsageLimit_FullMethodName         = "/memos.api.InstanceService/DeleteUsageLimit"
+	InstanceService_GetInstanceProfile_FullMethodName          = "/memos.api.InstanceService/GetInstanceProfile"
+	InstanceService_GetInstanceSetting_FullMethodName          = "/memos.api.InstanceService/GetInstanceSetting"
+	InstanceService_BatchGetInstanceSettings_FullMethodName    = "/memos.api.InstanceService/BatchGetInstanceSettings"
+	InstanceService_UpdateInstanceSetting_FullMethodName       = "/memos.api.InstanceService/UpdateInstanceSetting"
+	InstanceService_TestInstanceEmailSetting_FullMethodName    = "/memos.api.InstanceService/TestInstanceEmailSetting"
+	InstanceService_RunNotificationCleanup_FullMethodName      = "/memos.api.InstanceService/RunNotificationCleanup"
+	InstanceService_ListNotificationCleanupRuns_FullMethodName = "/memos.api.InstanceService/ListNotificationCleanupRuns"
+	InstanceService_GetInstanceStats_FullMethodName            = "/memos.api.InstanceService/GetInstanceStats"
+	InstanceService_ListUsageLimits_FullMethodName             = "/memos.api.InstanceService/ListUsageLimits"
+	InstanceService_GetUsageLimit_FullMethodName               = "/memos.api.InstanceService/GetUsageLimit"
+	InstanceService_CreateUsageLimit_FullMethodName            = "/memos.api.InstanceService/CreateUsageLimit"
+	InstanceService_UpdateUsageLimit_FullMethodName            = "/memos.api.InstanceService/UpdateUsageLimit"
+	InstanceService_DeleteUsageLimit_FullMethodName            = "/memos.api.InstanceService/DeleteUsageLimit"
 )
 
 // InstanceServiceClient is the client API for InstanceService service.
@@ -52,6 +54,14 @@ type InstanceServiceClient interface {
 	UpdateInstanceSetting(ctx context.Context, in *UpdateInstanceSettingRequest, opts ...grpc.CallOption) (*InstanceSetting, error)
 	// TestInstanceEmailSetting sends a test email with the provided or stored SMTP settings. Admin only.
 	TestInstanceEmailSetting(ctx context.Context, in *TestInstanceEmailSettingRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// RunNotificationCleanup applies the configured notification retention
+	// policy once and returns the run record. Admin only. Fails with
+	// FAILED_PRECONDITION while another cleanup is already running on this
+	// instance. A run is recorded even when no policy is configured.
+	RunNotificationCleanup(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*NotificationCleanupRunInfo, error)
+	// ListNotificationCleanupRuns lists recent notification cleanup runs,
+	// newest first. Admin only.
+	ListNotificationCleanupRuns(ctx context.Context, in *ListNotificationCleanupRunsRequest, opts ...grpc.CallOption) (*ListNotificationCleanupRunsResponse, error)
 	// GetInstanceStats gets resource usage statistics for the instance. Admin only. Results are cached for 60 seconds.
 	GetInstanceStats(ctx context.Context, in *GetInstanceStatsRequest, opts ...grpc.CallOption) (*InstanceStats, error)
 	// ListUsageLimits lists the usage limits: the defaults for every user and the
@@ -124,6 +134,26 @@ func (c *instanceServiceClient) TestInstanceEmailSetting(ctx context.Context, in
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, InstanceService_TestInstanceEmailSetting_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *instanceServiceClient) RunNotificationCleanup(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*NotificationCleanupRunInfo, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NotificationCleanupRunInfo)
+	err := c.cc.Invoke(ctx, InstanceService_RunNotificationCleanup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *instanceServiceClient) ListNotificationCleanupRuns(ctx context.Context, in *ListNotificationCleanupRunsRequest, opts ...grpc.CallOption) (*ListNotificationCleanupRunsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListNotificationCleanupRunsResponse)
+	err := c.cc.Invoke(ctx, InstanceService_ListNotificationCleanupRuns_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -209,6 +239,14 @@ type InstanceServiceServer interface {
 	UpdateInstanceSetting(context.Context, *UpdateInstanceSettingRequest) (*InstanceSetting, error)
 	// TestInstanceEmailSetting sends a test email with the provided or stored SMTP settings. Admin only.
 	TestInstanceEmailSetting(context.Context, *TestInstanceEmailSettingRequest) (*emptypb.Empty, error)
+	// RunNotificationCleanup applies the configured notification retention
+	// policy once and returns the run record. Admin only. Fails with
+	// FAILED_PRECONDITION while another cleanup is already running on this
+	// instance. A run is recorded even when no policy is configured.
+	RunNotificationCleanup(context.Context, *emptypb.Empty) (*NotificationCleanupRunInfo, error)
+	// ListNotificationCleanupRuns lists recent notification cleanup runs,
+	// newest first. Admin only.
+	ListNotificationCleanupRuns(context.Context, *ListNotificationCleanupRunsRequest) (*ListNotificationCleanupRunsResponse, error)
 	// GetInstanceStats gets resource usage statistics for the instance. Admin only. Results are cached for 60 seconds.
 	GetInstanceStats(context.Context, *GetInstanceStatsRequest) (*InstanceStats, error)
 	// ListUsageLimits lists the usage limits: the defaults for every user and the
@@ -251,6 +289,12 @@ func (UnimplementedInstanceServiceServer) UpdateInstanceSetting(context.Context,
 }
 func (UnimplementedInstanceServiceServer) TestInstanceEmailSetting(context.Context, *TestInstanceEmailSettingRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method TestInstanceEmailSetting not implemented")
+}
+func (UnimplementedInstanceServiceServer) RunNotificationCleanup(context.Context, *emptypb.Empty) (*NotificationCleanupRunInfo, error) {
+	return nil, status.Error(codes.Unimplemented, "method RunNotificationCleanup not implemented")
+}
+func (UnimplementedInstanceServiceServer) ListNotificationCleanupRuns(context.Context, *ListNotificationCleanupRunsRequest) (*ListNotificationCleanupRunsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListNotificationCleanupRuns not implemented")
 }
 func (UnimplementedInstanceServiceServer) GetInstanceStats(context.Context, *GetInstanceStatsRequest) (*InstanceStats, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetInstanceStats not implemented")
@@ -377,6 +421,42 @@ func _InstanceService_TestInstanceEmailSetting_Handler(srv interface{}, ctx cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(InstanceServiceServer).TestInstanceEmailSetting(ctx, req.(*TestInstanceEmailSettingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _InstanceService_RunNotificationCleanup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InstanceServiceServer).RunNotificationCleanup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InstanceService_RunNotificationCleanup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InstanceServiceServer).RunNotificationCleanup(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _InstanceService_ListNotificationCleanupRuns_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListNotificationCleanupRunsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InstanceServiceServer).ListNotificationCleanupRuns(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InstanceService_ListNotificationCleanupRuns_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InstanceServiceServer).ListNotificationCleanupRuns(ctx, req.(*ListNotificationCleanupRunsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -515,6 +595,14 @@ var InstanceService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TestInstanceEmailSetting",
 			Handler:    _InstanceService_TestInstanceEmailSetting_Handler,
+		},
+		{
+			MethodName: "RunNotificationCleanup",
+			Handler:    _InstanceService_RunNotificationCleanup_Handler,
+		},
+		{
+			MethodName: "ListNotificationCleanupRuns",
+			Handler:    _InstanceService_ListNotificationCleanupRuns_Handler,
 		},
 		{
 			MethodName: "GetInstanceStats",

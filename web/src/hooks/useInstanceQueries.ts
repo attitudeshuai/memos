@@ -10,6 +10,7 @@ export const instanceKeys = {
   setting: (key: InstanceSetting_Key) => [...instanceKeys.settings(), key] as const,
   settingsBatch: (keys: InstanceSetting_Key[]) => [...instanceKeys.settings(), "batch", ...keys] as const,
   stats: () => [...instanceKeys.all, "stats"] as const,
+  notificationCleanupRuns: () => [...instanceKeys.all, "notificationCleanupRuns"] as const,
 };
 
 // Build setting name from key
@@ -24,6 +25,29 @@ export function useInstanceStats() {
     queryKey: instanceKeys.stats(),
     queryFn: () => instanceServiceClient.getInstanceStats({}),
     staleTime: 60_000, // 60s — matches server-side cache TTL
+  });
+}
+
+// useNotificationCleanupRuns lists recent notification retention cleanup runs.
+export function useNotificationCleanupRuns() {
+  return useQuery({
+    queryKey: instanceKeys.notificationCleanupRuns(),
+    queryFn: async () => {
+      const response = await instanceServiceClient.listNotificationCleanupRuns({});
+      return response.cleanupRuns;
+    },
+  });
+}
+
+// useRunNotificationCleanup triggers a cleanup run immediately and refreshes the
+// run history.
+export function useRunNotificationCleanup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => instanceServiceClient.runNotificationCleanup({}),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: instanceKeys.notificationCleanupRuns() });
+    },
   });
 }
 

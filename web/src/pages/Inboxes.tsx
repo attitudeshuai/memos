@@ -1,8 +1,9 @@
-import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { sortBy } from "lodash-es";
 import { BellIcon } from "lucide-react";
+import { sortBy } from "lodash-es";
+import { timestampDate } from "@bufbuild/protobuf/wkt";
 import MemoCommentMessage from "@/components/Inbox/MemoCommentMessage";
 import MemoMentionMessage from "@/components/Inbox/MemoMentionMessage";
+import NotificationBatchToolbar from "@/components/Inbox/NotificationBatchToolbar";
 import SpaceInvitationMessage from "@/components/Inbox/SpaceInvitationMessage";
 import Placeholder from "@/components/Placeholder";
 import { useAppSidebar } from "@/contexts/AppSidebarContext";
@@ -46,7 +47,7 @@ const Inboxes = () => {
               </div>
             </div>
           </div>
-
+          <NotificationBatchToolbar />
           {/* Notifications List */}
           <div className="w-full">
             {notifications.length === 0 ? (

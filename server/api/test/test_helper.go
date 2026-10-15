@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	corenotification "github.com/usememos/memos/core/notification"
 	"github.com/usememos/memos/internal/profile"
 	"github.com/usememos/memos/markdown"
 	storepb "github.com/usememos/memos/proto/gen/store"
@@ -56,11 +57,12 @@ func NewTestService(t *testing.T) *TestService {
 		markdown.WithMentionExtension(),
 	)
 	service := &api.APIService{
-		Secret:          secret,
-		Profile:         testProfile,
-		Store:           testStore,
-		MarkdownService: markdownService,
-		SSEHub:          api.NewSSEHub(),
+		Secret:                secret,
+		Profile:               testProfile,
+		Store:                 testStore,
+		MarkdownService:        markdownService,
+		SSEHub:                api.NewSSEHub(),
+		NotificationRetention: corenotification.NewRetentionSweeper(testStore),
 	}
 
 	return &TestService{

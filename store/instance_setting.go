@@ -309,11 +309,27 @@ func (s *Store) GetInstanceTagsSetting(ctx context.Context) (*storepb.InstanceTa
 	return instanceTagsSetting, nil
 }
 
+// Retention policy sanity bounds. Zero disables a rule; the upper bounds only
+// reject implausible values.
+const (
+	MaxNotificationRetentionAgeDays = 36500
+	MaxNotificationRetentionPerUser = 1_000_000
+)
+
 // ValidateInstanceNotificationSetting checks the rules a notification setting
 // must meet before it is stored, whether it comes from the API or from
 // deployment configuration: enabled email needs a host, a positive port, and
-// a from address, and TLS and SSL are mutually exclusive.
+// a from address, TLS and SSL are mutually exclusive, and the retention
+// thresholds are non-negative and within their sanity bounds.
 func ValidateInstanceNotificationSetting(setting *storepb.InstanceNotificationSetting) error {
+	if retention := setting.GetRetention(); retention != nil {
+		if retention.MaxAgeDays < 0 || retention.MaxAgeDays > MaxNotificationRetentionAgeDays {
+			return errors.Errorf("notification retention maxAgeDays must be between 0 and %d", MaxNotificationRetentionAgeDays)
+		}
+		if retention.MaxPerUser < 0 || retention.MaxPerUser > MaxNotificationRetentionPerUser {
+			return errors.Errorf("notification retention maxPerUser must be between 0 and %d", MaxNotificationRetentionPerUser)
+		}
+	}
 	email := setting.GetEmail()
 	if email == nil || !email.Enabled {
 		return nil

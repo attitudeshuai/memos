@@ -44,9 +44,10 @@ type Server struct {
 	Profile *profile.Profile
 	Store   *store.Store
 
-	echoServer *echo.Echo
-	httpServer *http.Server
-	apiService *api.APIService
+	echoServer      *echo.Echo
+	httpServer      *http.Server
+	apiService      *api.APIService
+	retentionCancel context.CancelFunc
 }
 
 func NewServer(ctx context.Context, profile *profile.Profile, store *store.Store) (*Server, error) {
@@ -148,6 +149,12 @@ func (s *Server) Start() error {
 		}
 	}()
 
+	// Apply the notification retention policy on a fixed schedule. A policy
+	// with both limits unset makes every tick a cheap no-op.
+	retentionCtx, cancel := context.WithCancel(context.Background())
+	s.retentionCancel = cancel
+	s.apiService.NotificationRetention.Start(retentionCtx)
+
 	return nil
 }
 
@@ -159,6 +166,7 @@ func (s *Server) Shutdown(ctx context.Context) {
 
 	s.closeLongLivedConnections()
 	s.shutdownHTTPServer(ctx)
+	s.stopRetentionSweeper()
 	s.apiService.CloseUploads()
 
 	// Close database connection.
@@ -172,6 +180,17 @@ func (s *Server) Shutdown(ctx context.Context) {
 func (s *Server) closeLongLivedConnections() {
 	// Long-lived SSE requests do not finish on their own during http.Server.Shutdown.
 	s.apiService.SSEHub.Close()
+}
+
+// stopRetentionSweeper stops the retention scheduler before the database closes.
+func (s *Server) stopRetentionSweeper() {
+	if s.retentionCancel != nil {
+		s.retentionCancel()
+		s.retentionCancel = nil
+	}
+	if s.apiService != nil && s.apiService.NotificationRetention != nil {
+		s.apiService.NotificationRetention.Stop()
+	}
 }
 
 func (s *Server) shutdownHTTPServer(ctx context.Context) {

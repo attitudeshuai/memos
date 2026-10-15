@@ -177,6 +177,28 @@ service UserService {
     option (google.api.method_signature) = "name";
   }
 
+  // BatchUpdateUserNotifications marks every notification matched by scope as
+  // read (ARCHIVED). Only the receiver may call it. Only notifications that are
+  // currently UNREAD change, and the response count reflects those rows.
+  rpc BatchUpdateUserNotifications(BatchUpdateUserNotificationsRequest) returns (BatchUpdateUserNotificationsResponse) {
+    option (google.api.http) = {
+      post: "/api/{parent=users/*}/notifications:batchUpdate"
+      body: "scope"
+    };
+    option (google.api.method_signature) = "parent,scope";
+  }
+
+  // BatchDeleteUserNotifications permanently deletes every notification
+  // matched by scope regardless of its status. Only the receiver may call it.
+  // The response count reflects the rows actually deleted.
+  rpc BatchDeleteUserNotifications(BatchDeleteUserNotificationsRequest) returns (BatchDeleteUserNotificationsResponse) {
+    option (google.api.http) = {
+      post: "/api/{parent=users/*}/notifications:batchDelete"
+      body: "scope"
+    };
+    option (google.api.method_signature) = "parent,scope";
+  }
+
   // ListUserWebhooks lists a user's webhooks. Only the user may call it.
   rpc ListUserWebhooks(ListUserWebhooksRequest) returns (ListUserWebhooksResponse) {
     option (google.api.http) = {get: "/api/{parent=users/*}/webhooks"};
@@ -1017,6 +1039,57 @@ message DeleteUserNotificationRequest {
     (google.api.field_behavior) = REQUIRED,
     (google.api.resource_reference) = {type: "memos.api/UserNotification"}
   ];
+}
+
+// UserNotificationBatchScope selects the notifications of a batch operation.
+// Every set field narrows the scope; an empty scope matches all of the
+// receiver's notifications.
+message UserNotificationBatchScope {
+  // Optional. Restrict the scope to one notification type. Unset matches
+  // every type.
+  UserNotification.Type type = 1 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. Match notifications created strictly before this time. Unset
+  // applies no time bound.
+  google.protobuf.Timestamp before_time = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Request message for UserService.BatchUpdateUserNotifications.
+message BatchUpdateUserNotificationsRequest {
+  // Required. The user whose notifications are updated.
+  // Format: users/{user}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "memos.api/User"}
+  ];
+
+  // Required. The scope of notifications to mark as read.
+  UserNotificationBatchScope scope = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Response message for UserService.BatchUpdateUserNotifications.
+message BatchUpdateUserNotificationsResponse {
+  // Number of notifications actually changed from UNREAD to ARCHIVED.
+  int32 affected_count = 1;
+}
+
+// Request message for UserService.BatchDeleteUserNotifications.
+message BatchDeleteUserNotificationsRequest {
+  // Required. The user whose notifications are deleted.
+  // Format: users/{user}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "memos.api/User"}
+  ];
+
+  // Required. The scope of notifications to delete.
+  UserNotificationBatchScope scope = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Response message for UserService.BatchDeleteUserNotifications.
+message BatchDeleteUserNotificationsResponse {
+  // Number of notifications actually deleted.
+  int32 affected_count = 1;
 }
 
 // UserWebhook is a webhook owned by a user.

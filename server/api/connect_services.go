@@ -56,6 +56,22 @@ func (s *ConnectServiceHandler) TestInstanceEmailSetting(ctx context.Context, re
 	return connect.NewResponse(resp), nil
 }
 
+func (s *ConnectServiceHandler) RunNotificationCleanup(ctx context.Context, req *connect.Request[emptypb.Empty]) (*connect.Response[apipb.NotificationCleanupRunInfo], error) {
+	resp, err := s.APIService.RunNotificationCleanup(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (s *ConnectServiceHandler) ListNotificationCleanupRuns(ctx context.Context, req *connect.Request[apipb.ListNotificationCleanupRunsRequest]) (*connect.Response[apipb.ListNotificationCleanupRunsResponse], error) {
+	resp, err := s.APIService.ListNotificationCleanupRuns(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (s *ConnectServiceHandler) GetInstanceStats(ctx context.Context, req *connect.Request[apipb.GetInstanceStatsRequest]) (*connect.Response[apipb.InstanceStats], error) {
 	resp, err := s.APIService.GetInstanceStats(ctx, req.Msg)
 	if err != nil {
@@ -360,6 +376,22 @@ func (s *ConnectServiceHandler) UpdateUserNotification(ctx context.Context, req 
 
 func (s *ConnectServiceHandler) DeleteUserNotification(ctx context.Context, req *connect.Request[apipb.DeleteUserNotificationRequest]) (*connect.Response[emptypb.Empty], error) {
 	resp, err := s.APIService.DeleteUserNotification(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (s *ConnectServiceHandler) BatchUpdateUserNotifications(ctx context.Context, req *connect.Request[apipb.BatchUpdateUserNotificationsRequest]) (*connect.Response[apipb.BatchUpdateUserNotificationsResponse], error) {
+	resp, err := s.APIService.BatchUpdateUserNotifications(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (s *ConnectServiceHandler) BatchDeleteUserNotifications(ctx context.Context, req *connect.Request[apipb.BatchDeleteUserNotificationsRequest]) (*connect.Response[apipb.BatchDeleteUserNotificationsResponse], error) {
+	resp, err := s.APIService.BatchDeleteUserNotifications(ctx, req.Msg)
 	if err != nil {
 		return nil, convertGRPCError(err)
 	}

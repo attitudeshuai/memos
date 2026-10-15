@@ -96,6 +96,22 @@ type Driver interface {
 	UpdateInbox(ctx context.Context, update *UpdateInbox) (*Inbox, error)
 	DeleteInbox(ctx context.Context, delete *DeleteInbox) error
 
+	// Inbox bulk operations used by user batch actions and retention cleanup.
+	// ListInboxIDs returns up to limit matching IDs in ascending order.
+	ListInboxIDs(ctx context.Context, find *FindInbox, limit int) ([]int32, error)
+	UpdateInboxStatusByIDs(ctx context.Context, ids []int32, status InboxStatus) (int32, error)
+	DeleteInboxByIDs(ctx context.Context, ids []int32) (int32, error)
+	GetMaxInboxID(ctx context.Context) (int32, error)
+	// DeleteInboxesOverPerUserLimit keeps the newest perUserLimit inboxes per
+	// receiver and deletes the rest, restricted to IDs up to watermark.
+	DeleteInboxesOverPerUserLimit(ctx context.Context, perUserLimit int32, watermark int32) (int32, error)
+
+	// NotificationCleanupRun model related methods.
+	CreateNotificationCleanupRun(ctx context.Context, run *NotificationCleanupRun) (*NotificationCleanupRun, error)
+	UpdateNotificationCleanupRun(ctx context.Context, run *NotificationCleanupRun) error
+	ListNotificationCleanupRuns(ctx context.Context, limit int) ([]*NotificationCleanupRun, error)
+	PruneNotificationCleanupRuns(ctx context.Context, keep int) error
+
 	// Reaction model related methods.
 	UpsertReaction(ctx context.Context, create *Reaction) (*Reaction, error)
 	ListReactions(ctx context.Context, find *FindReaction) ([]*Reaction, error)

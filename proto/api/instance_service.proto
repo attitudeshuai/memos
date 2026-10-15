@@ -55,6 +55,23 @@ service InstanceService {
     };
   }
 
+  // RunNotificationCleanup applies the configured notification retention
+  // policy once and returns the run record. Admin only. Fails with
+  // FAILED_PRECONDITION while another cleanup is already running on this
+  // instance. A run is recorded even when no policy is configured.
+  rpc RunNotificationCleanup(google.protobuf.Empty) returns (NotificationCleanupRunInfo) {
+    option (google.api.http) = {
+      post: "/api/notificationCleanupRuns:run"
+      body: "*"
+    };
+  }
+
+  // ListNotificationCleanupRuns lists recent notification cleanup runs,
+  // newest first. Admin only.
+  rpc ListNotificationCleanupRuns(ListNotificationCleanupRunsRequest) returns (ListNotificationCleanupRunsResponse) {
+    option (google.api.http) = {get: "/api/notificationCleanupRuns"};
+  }
+
   // GetInstanceStats gets resource usage statistics for the instance. Admin only. Results are cached for 60 seconds.
   rpc GetInstanceStats(GetInstanceStatsRequest) returns (InstanceStats) {
     option (google.api.http) = {get: "/api/instance/stats"};
@@ -402,6 +419,24 @@ message InstanceSetting {
     // The email delivery configuration.
     EmailSetting email = 1;
 
+    // The retention policy that automatically removes old notifications. Both
+    // limits default to 0, which disables cleanup and keeps the historical
+    // behavior unchanged.
+    RetentionSetting retention = 2;
+
+    // RetentionSetting declares how long notifications are kept. Both limits
+    // apply independently to every receiver and to notifications of every
+    // status, including unread ones.
+    message RetentionSetting {
+      // Delete notifications older than this many days. 0 disables age
+      // cleanup.
+      int32 max_age_days = 1;
+
+      // Keep at most this many notifications per receiver, newest first. 0
+      // disables per-user count cleanup.
+      int32 max_per_user = 2;
+    }
+
     // EmailSetting is the SMTP configuration for notification emails.
     message EmailSetting {
       // Whether email notifications are enabled.
@@ -540,6 +575,85 @@ message TestInstanceEmailSettingRequest {
 
   // Optional. The recipient email address. If omitted, the current user's email address is used.
   string recipient_email = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// NotificationCleanupRunInfo is the audit record of one notification
+// retention cleanup run.
+message NotificationCleanupRunInfo {
+  // Output only. The resource name of the run.
+  // Format: notificationCleanupRuns/{notification_cleanup_run}
+  string name = 1 [
+    (google.api.field_behavior) = IDENTIFIER,
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // Output only. When the run started.
+  google.protobuf.Timestamp create_time = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. When the run finished. Unset while the run is in progress.
+  google.protobuf.Timestamp complete_time = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. What started the run.
+  Trigger trigger = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The outcome of the run.
+  State state = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The inbox ID snapshot taken when the run started. Only
+  // notifications with IDs up to this value were eligible for deletion, so
+  // notifications dispatched during the run were never collected by it.
+  int32 watermark_inbox_id = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The configured max age in days for this run. 0 means the age
+  // rule was disabled.
+  int32 max_age_days = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The configured per-user notification cap for this run. 0
+  // means the count rule was disabled.
+  int32 max_per_user = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The cutoff time used by the age rule. Notifications created
+  // strictly before it were eligible for deletion. Unset when the age rule
+  // was disabled.
+  google.protobuf.Timestamp age_cutoff_time = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. Notifications deleted by the age rule.
+  int32 deleted_age_count = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. Notifications deleted by the per-user count rule.
+  int32 deleted_cap_count = 11 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The failure reason when state is FAILED; empty otherwise.
+  string error_detail = 12 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Trigger is what started a cleanup run.
+  enum Trigger {
+    TRIGGER_UNSPECIFIED = 0;
+    // The run was started by the instance scheduler.
+    SCHEDULED = 1;
+    // The run was started by an administrator.
+    MANUAL = 2;
+  }
+
+  // State is the outcome of a cleanup run.
+  enum State {
+    STATE_UNSPECIFIED = 0;
+    // The run is still in progress.
+    RUNNING = 1;
+    // The run finished successfully.
+    SUCCEEDED = 2;
+    // The run failed; error_detail carries the reason.
+    FAILED = 3;
+  }
+}
+
+// Request message for InstanceService.ListNotificationCleanupRuns.
+message ListNotificationCleanupRunsRequest {}
+
+// Response message for InstanceService.ListNotificationCleanupRuns.
+message ListNotificationCleanupRunsResponse {
+  // The cleanup runs, newest first.
+  repeated NotificationCleanupRunInfo cleanup_runs = 1;
 }
 
 // InstanceStats is a snapshot of the instance's resource usage.

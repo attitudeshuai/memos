@@ -1231,8 +1231,11 @@ func (x *InstanceTagsSetting) GetTags() map[string]*InstanceTagMetadata {
 }
 
 type InstanceNotificationSetting struct {
-	state         protoimpl.MessageState                    `protogen:"open.v1"`
-	Email         *InstanceNotificationSetting_EmailSetting `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	state protoimpl.MessageState                    `protogen:"open.v1"`
+	Email *InstanceNotificationSetting_EmailSetting `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	// Retention is the automatic cleanup policy for inbox notifications. Zero
+	// values disable that rule.
+	Retention     *InstanceNotificationSetting_RetentionSetting `protobuf:"bytes,2,opt,name=retention,proto3" json:"retention,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1270,6 +1273,13 @@ func (*InstanceNotificationSetting) Descriptor() ([]byte, []int) {
 func (x *InstanceNotificationSetting) GetEmail() *InstanceNotificationSetting_EmailSetting {
 	if x != nil {
 		return x.Email
+	}
+	return nil
+}
+
+func (x *InstanceNotificationSetting) GetRetention() *InstanceNotificationSetting_RetentionSetting {
+	if x != nil {
+		return x.Retention
 	}
 	return nil
 }
@@ -1584,6 +1594,64 @@ func (x *InstanceUsageLimitsSetting) GetLimits() []*InstanceUsageLimitsSetting_U
 	return nil
 }
 
+// RetentionSetting declares how long notifications are kept. Both limits
+// apply independently to every receiver and to notifications of every
+// status, including unread ones.
+type InstanceNotificationSetting_RetentionSetting struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Delete notifications older than this many days. 0 disables age cleanup.
+	MaxAgeDays int32 `protobuf:"varint,1,opt,name=max_age_days,json=maxAgeDays,proto3" json:"max_age_days,omitempty"`
+	// Keep at most this many notifications per receiver, newest first. 0
+	// disables per-user count cleanup.
+	MaxPerUser    int32 `protobuf:"varint,2,opt,name=max_per_user,json=maxPerUser,proto3" json:"max_per_user,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstanceNotificationSetting_RetentionSetting) Reset() {
+	*x = InstanceNotificationSetting_RetentionSetting{}
+	mi := &file_store_instance_setting_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstanceNotificationSetting_RetentionSetting) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstanceNotificationSetting_RetentionSetting) ProtoMessage() {}
+
+func (x *InstanceNotificationSetting_RetentionSetting) ProtoReflect() protoreflect.Message {
+	mi := &file_store_instance_setting_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstanceNotificationSetting_RetentionSetting.ProtoReflect.Descriptor instead.
+func (*InstanceNotificationSetting_RetentionSetting) Descriptor() ([]byte, []int) {
+	return file_store_instance_setting_proto_rawDescGZIP(), []int{10, 0}
+}
+
+func (x *InstanceNotificationSetting_RetentionSetting) GetMaxAgeDays() int32 {
+	if x != nil {
+		return x.MaxAgeDays
+	}
+	return 0
+}
+
+func (x *InstanceNotificationSetting_RetentionSetting) GetMaxPerUser() int32 {
+	if x != nil {
+		return x.MaxPerUser
+	}
+	return 0
+}
+
 type InstanceNotificationSetting_EmailSetting struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
@@ -1602,7 +1670,7 @@ type InstanceNotificationSetting_EmailSetting struct {
 
 func (x *InstanceNotificationSetting_EmailSetting) Reset() {
 	*x = InstanceNotificationSetting_EmailSetting{}
-	mi := &file_store_instance_setting_proto_msgTypes[17]
+	mi := &file_store_instance_setting_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1614,7 +1682,7 @@ func (x *InstanceNotificationSetting_EmailSetting) String() string {
 func (*InstanceNotificationSetting_EmailSetting) ProtoMessage() {}
 
 func (x *InstanceNotificationSetting_EmailSetting) ProtoReflect() protoreflect.Message {
-	mi := &file_store_instance_setting_proto_msgTypes[17]
+	mi := &file_store_instance_setting_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1627,7 +1695,7 @@ func (x *InstanceNotificationSetting_EmailSetting) ProtoReflect() protoreflect.M
 
 // Deprecated: Use InstanceNotificationSetting_EmailSetting.ProtoReflect.Descriptor instead.
 func (*InstanceNotificationSetting_EmailSetting) Descriptor() ([]byte, []int) {
-	return file_store_instance_setting_proto_rawDescGZIP(), []int{10, 0}
+	return file_store_instance_setting_proto_rawDescGZIP(), []int{10, 1}
 }
 
 func (x *InstanceNotificationSetting_EmailSetting) GetEnabled() bool {
@@ -1722,7 +1790,7 @@ type InstanceUsageLimitsSetting_UsageLimit struct {
 
 func (x *InstanceUsageLimitsSetting_UsageLimit) Reset() {
 	*x = InstanceUsageLimitsSetting_UsageLimit{}
-	mi := &file_store_instance_setting_proto_msgTypes[18]
+	mi := &file_store_instance_setting_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1734,7 +1802,7 @@ func (x *InstanceUsageLimitsSetting_UsageLimit) String() string {
 func (*InstanceUsageLimitsSetting_UsageLimit) ProtoMessage() {}
 
 func (x *InstanceUsageLimitsSetting_UsageLimit) ProtoReflect() protoreflect.Message {
-	mi := &file_store_instance_setting_proto_msgTypes[18]
+	mi := &file_store_instance_setting_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1901,9 +1969,15 @@ const file_store_instance_setting_proto_rawDesc = "" +
 	"\x04tags\x18\x01 \x03(\v2*.memos.store.InstanceTagsSetting.TagsEntryR\x04tags\x1aY\n" +
 	"\tTagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x126\n" +
-	"\x05value\x18\x02 \x01(\v2 .memos.store.InstanceTagMetadataR\x05value:\x028\x01\"\xa2\x03\n" +
+	"\x05value\x18\x02 \x01(\v2 .memos.store.InstanceTagMetadataR\x05value:\x028\x01\"\xd3\x04\n" +
 	"\x1bInstanceNotificationSetting\x12K\n" +
-	"\x05email\x18\x01 \x01(\v25.memos.store.InstanceNotificationSetting.EmailSettingR\x05email\x1a\xb5\x02\n" +
+	"\x05email\x18\x01 \x01(\v25.memos.store.InstanceNotificationSetting.EmailSettingR\x05email\x12W\n" +
+	"\tretention\x18\x02 \x01(\v29.memos.store.InstanceNotificationSetting.RetentionSettingR\tretention\x1aV\n" +
+	"\x10RetentionSetting\x12 \n" +
+	"\fmax_age_days\x18\x01 \x01(\x05R\n" +
+	"maxAgeDays\x12 \n" +
+	"\fmax_per_user\x18\x02 \x01(\x05R\n" +
+	"maxPerUser\x1a\xb5\x02\n" +
 	"\fEmailSetting\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1b\n" +
 	"\tsmtp_host\x18\x02 \x01(\tR\bsmtpHost\x12\x1b\n" +
@@ -1998,36 +2072,37 @@ func file_store_instance_setting_proto_rawDescGZIP() []byte {
 }
 
 var file_store_instance_setting_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_store_instance_setting_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_store_instance_setting_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_store_instance_setting_proto_goTypes = []any{
-	(InstanceSettingKey)(0),                          // 0: memos.store.InstanceSettingKey
-	(StorageType)(0),                                 // 1: memos.store.StorageType
-	(AIProviderType)(0),                              // 2: memos.store.AIProviderType
-	(InstanceAccessMode)(0),                          // 3: memos.store.InstanceAccessMode
-	(InstanceStorageSetting_StorageType)(0),          // 4: memos.store.InstanceStorageSetting.StorageType
-	(InstanceUsageLimitsSetting_Metric)(0),           // 5: memos.store.InstanceUsageLimitsSetting.Metric
-	(*InstanceSetting)(nil),                          // 6: memos.store.InstanceSetting
-	(*InstanceBasicSetting)(nil),                     // 7: memos.store.InstanceBasicSetting
-	(*InstanceGeneralSetting)(nil),                   // 8: memos.store.InstanceGeneralSetting
-	(*InstanceCustomProfile)(nil),                    // 9: memos.store.InstanceCustomProfile
-	(*Storage)(nil),                                  // 10: memos.store.Storage
-	(*InstanceStorageSetting)(nil),                   // 11: memos.store.InstanceStorageSetting
-	(*StorageS3Config)(nil),                          // 12: memos.store.StorageS3Config
-	(*InstanceMemoRelatedSetting)(nil),               // 13: memos.store.InstanceMemoRelatedSetting
-	(*InstanceTagMetadata)(nil),                      // 14: memos.store.InstanceTagMetadata
-	(*InstanceTagsSetting)(nil),                      // 15: memos.store.InstanceTagsSetting
-	(*InstanceNotificationSetting)(nil),              // 16: memos.store.InstanceNotificationSetting
-	(*InstanceAISetting)(nil),                        // 17: memos.store.InstanceAISetting
-	(*AIProviderConfig)(nil),                         // 18: memos.store.AIProviderConfig
-	(*TranscriptionConfig)(nil),                      // 19: memos.store.TranscriptionConfig
-	(*InstanceAccessSetting)(nil),                    // 20: memos.store.InstanceAccessSetting
-	(*InstanceUsageLimitsSetting)(nil),               // 21: memos.store.InstanceUsageLimitsSetting
-	nil,                                              // 22: memos.store.InstanceTagsSetting.TagsEntry
-	(*InstanceNotificationSetting_EmailSetting)(nil), // 23: memos.store.InstanceNotificationSetting.EmailSetting
-	(*InstanceUsageLimitsSetting_UsageLimit)(nil),    // 24: memos.store.InstanceUsageLimitsSetting.UsageLimit
-	(*color.Color)(nil),                              // 25: google.type.Color
-	(*emptypb.Empty)(nil),                            // 26: google.protobuf.Empty
-	(*timestamppb.Timestamp)(nil),                    // 27: google.protobuf.Timestamp
+	(InstanceSettingKey)(0),                              // 0: memos.store.InstanceSettingKey
+	(StorageType)(0),                                     // 1: memos.store.StorageType
+	(AIProviderType)(0),                                  // 2: memos.store.AIProviderType
+	(InstanceAccessMode)(0),                              // 3: memos.store.InstanceAccessMode
+	(InstanceStorageSetting_StorageType)(0),              // 4: memos.store.InstanceStorageSetting.StorageType
+	(InstanceUsageLimitsSetting_Metric)(0),               // 5: memos.store.InstanceUsageLimitsSetting.Metric
+	(*InstanceSetting)(nil),                              // 6: memos.store.InstanceSetting
+	(*InstanceBasicSetting)(nil),                         // 7: memos.store.InstanceBasicSetting
+	(*InstanceGeneralSetting)(nil),                       // 8: memos.store.InstanceGeneralSetting
+	(*InstanceCustomProfile)(nil),                        // 9: memos.store.InstanceCustomProfile
+	(*Storage)(nil),                                      // 10: memos.store.Storage
+	(*InstanceStorageSetting)(nil),                       // 11: memos.store.InstanceStorageSetting
+	(*StorageS3Config)(nil),                              // 12: memos.store.StorageS3Config
+	(*InstanceMemoRelatedSetting)(nil),                   // 13: memos.store.InstanceMemoRelatedSetting
+	(*InstanceTagMetadata)(nil),                          // 14: memos.store.InstanceTagMetadata
+	(*InstanceTagsSetting)(nil),                          // 15: memos.store.InstanceTagsSetting
+	(*InstanceNotificationSetting)(nil),                  // 16: memos.store.InstanceNotificationSetting
+	(*InstanceAISetting)(nil),                            // 17: memos.store.InstanceAISetting
+	(*AIProviderConfig)(nil),                             // 18: memos.store.AIProviderConfig
+	(*TranscriptionConfig)(nil),                          // 19: memos.store.TranscriptionConfig
+	(*InstanceAccessSetting)(nil),                        // 20: memos.store.InstanceAccessSetting
+	(*InstanceUsageLimitsSetting)(nil),                   // 21: memos.store.InstanceUsageLimitsSetting
+	nil,                                                  // 22: memos.store.InstanceTagsSetting.TagsEntry
+	(*InstanceNotificationSetting_RetentionSetting)(nil), // 23: memos.store.InstanceNotificationSetting.RetentionSetting
+	(*InstanceNotificationSetting_EmailSetting)(nil),     // 24: memos.store.InstanceNotificationSetting.EmailSetting
+	(*InstanceUsageLimitsSetting_UsageLimit)(nil),        // 25: memos.store.InstanceUsageLimitsSetting.UsageLimit
+	(*color.Color)(nil),                                  // 26: google.type.Color
+	(*emptypb.Empty)(nil),                                // 27: google.protobuf.Empty
+	(*timestamppb.Timestamp)(nil),                        // 28: google.protobuf.Timestamp
 }
 var file_store_instance_setting_proto_depIdxs = []int32{
 	0,  // 0: memos.store.InstanceSetting.key:type_name -> memos.store.InstanceSettingKey
@@ -2046,24 +2121,25 @@ var file_store_instance_setting_proto_depIdxs = []int32{
 	4,  // 13: memos.store.InstanceStorageSetting.storage_type:type_name -> memos.store.InstanceStorageSetting.StorageType
 	12, // 14: memos.store.InstanceStorageSetting.s3_config:type_name -> memos.store.StorageS3Config
 	10, // 15: memos.store.InstanceStorageSetting.storages:type_name -> memos.store.Storage
-	25, // 16: memos.store.InstanceTagMetadata.background_color:type_name -> google.type.Color
+	26, // 16: memos.store.InstanceTagMetadata.background_color:type_name -> google.type.Color
 	22, // 17: memos.store.InstanceTagsSetting.tags:type_name -> memos.store.InstanceTagsSetting.TagsEntry
-	23, // 18: memos.store.InstanceNotificationSetting.email:type_name -> memos.store.InstanceNotificationSetting.EmailSetting
-	18, // 19: memos.store.InstanceAISetting.providers:type_name -> memos.store.AIProviderConfig
-	19, // 20: memos.store.InstanceAISetting.transcription:type_name -> memos.store.TranscriptionConfig
-	2,  // 21: memos.store.AIProviderConfig.type:type_name -> memos.store.AIProviderType
-	3,  // 22: memos.store.InstanceAccessSetting.access_mode:type_name -> memos.store.InstanceAccessMode
-	24, // 23: memos.store.InstanceUsageLimitsSetting.limits:type_name -> memos.store.InstanceUsageLimitsSetting.UsageLimit
-	14, // 24: memos.store.InstanceTagsSetting.TagsEntry.value:type_name -> memos.store.InstanceTagMetadata
-	5,  // 25: memos.store.InstanceUsageLimitsSetting.UsageLimit.metric:type_name -> memos.store.InstanceUsageLimitsSetting.Metric
-	26, // 26: memos.store.InstanceUsageLimitsSetting.UsageLimit.all_users:type_name -> google.protobuf.Empty
-	27, // 27: memos.store.InstanceUsageLimitsSetting.UsageLimit.create_time:type_name -> google.protobuf.Timestamp
-	27, // 28: memos.store.InstanceUsageLimitsSetting.UsageLimit.update_time:type_name -> google.protobuf.Timestamp
-	29, // [29:29] is the sub-list for method output_type
-	29, // [29:29] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	24, // 18: memos.store.InstanceNotificationSetting.email:type_name -> memos.store.InstanceNotificationSetting.EmailSetting
+	23, // 19: memos.store.InstanceNotificationSetting.retention:type_name -> memos.store.InstanceNotificationSetting.RetentionSetting
+	18, // 20: memos.store.InstanceAISetting.providers:type_name -> memos.store.AIProviderConfig
+	19, // 21: memos.store.InstanceAISetting.transcription:type_name -> memos.store.TranscriptionConfig
+	2,  // 22: memos.store.AIProviderConfig.type:type_name -> memos.store.AIProviderType
+	3,  // 23: memos.store.InstanceAccessSetting.access_mode:type_name -> memos.store.InstanceAccessMode
+	25, // 24: memos.store.InstanceUsageLimitsSetting.limits:type_name -> memos.store.InstanceUsageLimitsSetting.UsageLimit
+	14, // 25: memos.store.InstanceTagsSetting.TagsEntry.value:type_name -> memos.store.InstanceTagMetadata
+	5,  // 26: memos.store.InstanceUsageLimitsSetting.UsageLimit.metric:type_name -> memos.store.InstanceUsageLimitsSetting.Metric
+	27, // 27: memos.store.InstanceUsageLimitsSetting.UsageLimit.all_users:type_name -> google.protobuf.Empty
+	28, // 28: memos.store.InstanceUsageLimitsSetting.UsageLimit.create_time:type_name -> google.protobuf.Timestamp
+	28, // 29: memos.store.InstanceUsageLimitsSetting.UsageLimit.update_time:type_name -> google.protobuf.Timestamp
+	30, // [30:30] is the sub-list for method output_type
+	30, // [30:30] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_store_instance_setting_proto_init() }
@@ -2085,7 +2161,7 @@ func file_store_instance_setting_proto_init() {
 	file_store_instance_setting_proto_msgTypes[4].OneofWrappers = []any{
 		(*Storage_S3Config)(nil),
 	}
-	file_store_instance_setting_proto_msgTypes[18].OneofWrappers = []any{
+	file_store_instance_setting_proto_msgTypes[19].OneofWrappers = []any{
 		(*InstanceUsageLimitsSetting_UsageLimit_AllUsers)(nil),
 		(*InstanceUsageLimitsSetting_UsageLimit_UserId)(nil),
 	}
@@ -2095,7 +2171,7 @@ func file_store_instance_setting_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_store_instance_setting_proto_rawDesc), len(file_store_instance_setting_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   19,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

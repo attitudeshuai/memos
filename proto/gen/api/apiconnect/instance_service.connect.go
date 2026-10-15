@@ -49,6 +49,12 @@ const (
 	// InstanceServiceTestInstanceEmailSettingProcedure is the fully-qualified name of the
 	// InstanceService's TestInstanceEmailSetting RPC.
 	InstanceServiceTestInstanceEmailSettingProcedure = "/memos.api.InstanceService/TestInstanceEmailSetting"
+	// InstanceServiceRunNotificationCleanupProcedure is the fully-qualified name of the
+	// InstanceService's RunNotificationCleanup RPC.
+	InstanceServiceRunNotificationCleanupProcedure = "/memos.api.InstanceService/RunNotificationCleanup"
+	// InstanceServiceListNotificationCleanupRunsProcedure is the fully-qualified name of the
+	// InstanceService's ListNotificationCleanupRuns RPC.
+	InstanceServiceListNotificationCleanupRunsProcedure = "/memos.api.InstanceService/ListNotificationCleanupRuns"
 	// InstanceServiceGetInstanceStatsProcedure is the fully-qualified name of the InstanceService's
 	// GetInstanceStats RPC.
 	InstanceServiceGetInstanceStatsProcedure = "/memos.api.InstanceService/GetInstanceStats"
@@ -84,6 +90,14 @@ type InstanceServiceClient interface {
 	UpdateInstanceSetting(context.Context, *connect.Request[api.UpdateInstanceSettingRequest]) (*connect.Response[api.InstanceSetting], error)
 	// TestInstanceEmailSetting sends a test email with the provided or stored SMTP settings. Admin only.
 	TestInstanceEmailSetting(context.Context, *connect.Request[api.TestInstanceEmailSettingRequest]) (*connect.Response[emptypb.Empty], error)
+	// RunNotificationCleanup applies the configured notification retention
+	// policy once and returns the run record. Admin only. Fails with
+	// FAILED_PRECONDITION while another cleanup is already running on this
+	// instance. A run is recorded even when no policy is configured.
+	RunNotificationCleanup(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[api.NotificationCleanupRunInfo], error)
+	// ListNotificationCleanupRuns lists recent notification cleanup runs,
+	// newest first. Admin only.
+	ListNotificationCleanupRuns(context.Context, *connect.Request[api.ListNotificationCleanupRunsRequest]) (*connect.Response[api.ListNotificationCleanupRunsResponse], error)
 	// GetInstanceStats gets resource usage statistics for the instance. Admin only. Results are cached for 60 seconds.
 	GetInstanceStats(context.Context, *connect.Request[api.GetInstanceStatsRequest]) (*connect.Response[api.InstanceStats], error)
 	// ListUsageLimits lists the usage limits: the defaults for every user and the
@@ -145,6 +159,18 @@ func NewInstanceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(instanceServiceMethods.ByName("TestInstanceEmailSetting")),
 			connect.WithClientOptions(opts...),
 		),
+		runNotificationCleanup: connect.NewClient[emptypb.Empty, api.NotificationCleanupRunInfo](
+			httpClient,
+			baseURL+InstanceServiceRunNotificationCleanupProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("RunNotificationCleanup")),
+			connect.WithClientOptions(opts...),
+		),
+		listNotificationCleanupRuns: connect.NewClient[api.ListNotificationCleanupRunsRequest, api.ListNotificationCleanupRunsResponse](
+			httpClient,
+			baseURL+InstanceServiceListNotificationCleanupRunsProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("ListNotificationCleanupRuns")),
+			connect.WithClientOptions(opts...),
+		),
 		getInstanceStats: connect.NewClient[api.GetInstanceStatsRequest, api.InstanceStats](
 			httpClient,
 			baseURL+InstanceServiceGetInstanceStatsProcedure,
@@ -186,17 +212,19 @@ func NewInstanceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // instanceServiceClient implements InstanceServiceClient.
 type instanceServiceClient struct {
-	getInstanceProfile       *connect.Client[api.GetInstanceProfileRequest, api.InstanceProfile]
-	getInstanceSetting       *connect.Client[api.GetInstanceSettingRequest, api.InstanceSetting]
-	batchGetInstanceSettings *connect.Client[api.BatchGetInstanceSettingsRequest, api.BatchGetInstanceSettingsResponse]
-	updateInstanceSetting    *connect.Client[api.UpdateInstanceSettingRequest, api.InstanceSetting]
-	testInstanceEmailSetting *connect.Client[api.TestInstanceEmailSettingRequest, emptypb.Empty]
-	getInstanceStats         *connect.Client[api.GetInstanceStatsRequest, api.InstanceStats]
-	listUsageLimits          *connect.Client[api.ListUsageLimitsRequest, api.ListUsageLimitsResponse]
-	getUsageLimit            *connect.Client[api.GetUsageLimitRequest, api.UsageLimit]
-	createUsageLimit         *connect.Client[api.CreateUsageLimitRequest, api.UsageLimit]
-	updateUsageLimit         *connect.Client[api.UpdateUsageLimitRequest, api.UsageLimit]
-	deleteUsageLimit         *connect.Client[api.DeleteUsageLimitRequest, emptypb.Empty]
+	getInstanceProfile          *connect.Client[api.GetInstanceProfileRequest, api.InstanceProfile]
+	getInstanceSetting          *connect.Client[api.GetInstanceSettingRequest, api.InstanceSetting]
+	batchGetInstanceSettings    *connect.Client[api.BatchGetInstanceSettingsRequest, api.BatchGetInstanceSettingsResponse]
+	updateInstanceSetting       *connect.Client[api.UpdateInstanceSettingRequest, api.InstanceSetting]
+	testInstanceEmailSetting    *connect.Client[api.TestInstanceEmailSettingRequest, emptypb.Empty]
+	runNotificationCleanup      *connect.Client[emptypb.Empty, api.NotificationCleanupRunInfo]
+	listNotificationCleanupRuns *connect.Client[api.ListNotificationCleanupRunsRequest, api.ListNotificationCleanupRunsResponse]
+	getInstanceStats            *connect.Client[api.GetInstanceStatsRequest, api.InstanceStats]
+	listUsageLimits             *connect.Client[api.ListUsageLimitsRequest, api.ListUsageLimitsResponse]
+	getUsageLimit               *connect.Client[api.GetUsageLimitRequest, api.UsageLimit]
+	createUsageLimit            *connect.Client[api.CreateUsageLimitRequest, api.UsageLimit]
+	updateUsageLimit            *connect.Client[api.UpdateUsageLimitRequest, api.UsageLimit]
+	deleteUsageLimit            *connect.Client[api.DeleteUsageLimitRequest, emptypb.Empty]
 }
 
 // GetInstanceProfile calls memos.api.InstanceService.GetInstanceProfile.
@@ -222,6 +250,16 @@ func (c *instanceServiceClient) UpdateInstanceSetting(ctx context.Context, req *
 // TestInstanceEmailSetting calls memos.api.InstanceService.TestInstanceEmailSetting.
 func (c *instanceServiceClient) TestInstanceEmailSetting(ctx context.Context, req *connect.Request[api.TestInstanceEmailSettingRequest]) (*connect.Response[emptypb.Empty], error) {
 	return c.testInstanceEmailSetting.CallUnary(ctx, req)
+}
+
+// RunNotificationCleanup calls memos.api.InstanceService.RunNotificationCleanup.
+func (c *instanceServiceClient) RunNotificationCleanup(ctx context.Context, req *connect.Request[emptypb.Empty]) (*connect.Response[api.NotificationCleanupRunInfo], error) {
+	return c.runNotificationCleanup.CallUnary(ctx, req)
+}
+
+// ListNotificationCleanupRuns calls memos.api.InstanceService.ListNotificationCleanupRuns.
+func (c *instanceServiceClient) ListNotificationCleanupRuns(ctx context.Context, req *connect.Request[api.ListNotificationCleanupRunsRequest]) (*connect.Response[api.ListNotificationCleanupRunsResponse], error) {
+	return c.listNotificationCleanupRuns.CallUnary(ctx, req)
 }
 
 // GetInstanceStats calls memos.api.InstanceService.GetInstanceStats.
@@ -269,6 +307,14 @@ type InstanceServiceHandler interface {
 	UpdateInstanceSetting(context.Context, *connect.Request[api.UpdateInstanceSettingRequest]) (*connect.Response[api.InstanceSetting], error)
 	// TestInstanceEmailSetting sends a test email with the provided or stored SMTP settings. Admin only.
 	TestInstanceEmailSetting(context.Context, *connect.Request[api.TestInstanceEmailSettingRequest]) (*connect.Response[emptypb.Empty], error)
+	// RunNotificationCleanup applies the configured notification retention
+	// policy once and returns the run record. Admin only. Fails with
+	// FAILED_PRECONDITION while another cleanup is already running on this
+	// instance. A run is recorded even when no policy is configured.
+	RunNotificationCleanup(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[api.NotificationCleanupRunInfo], error)
+	// ListNotificationCleanupRuns lists recent notification cleanup runs,
+	// newest first. Admin only.
+	ListNotificationCleanupRuns(context.Context, *connect.Request[api.ListNotificationCleanupRunsRequest]) (*connect.Response[api.ListNotificationCleanupRunsResponse], error)
 	// GetInstanceStats gets resource usage statistics for the instance. Admin only. Results are cached for 60 seconds.
 	GetInstanceStats(context.Context, *connect.Request[api.GetInstanceStatsRequest]) (*connect.Response[api.InstanceStats], error)
 	// ListUsageLimits lists the usage limits: the defaults for every user and the
@@ -326,6 +372,18 @@ func NewInstanceServiceHandler(svc InstanceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(instanceServiceMethods.ByName("TestInstanceEmailSetting")),
 		connect.WithHandlerOptions(opts...),
 	)
+	instanceServiceRunNotificationCleanupHandler := connect.NewUnaryHandler(
+		InstanceServiceRunNotificationCleanupProcedure,
+		svc.RunNotificationCleanup,
+		connect.WithSchema(instanceServiceMethods.ByName("RunNotificationCleanup")),
+		connect.WithHandlerOptions(opts...),
+	)
+	instanceServiceListNotificationCleanupRunsHandler := connect.NewUnaryHandler(
+		InstanceServiceListNotificationCleanupRunsProcedure,
+		svc.ListNotificationCleanupRuns,
+		connect.WithSchema(instanceServiceMethods.ByName("ListNotificationCleanupRuns")),
+		connect.WithHandlerOptions(opts...),
+	)
 	instanceServiceGetInstanceStatsHandler := connect.NewUnaryHandler(
 		InstanceServiceGetInstanceStatsProcedure,
 		svc.GetInstanceStats,
@@ -374,6 +432,10 @@ func NewInstanceServiceHandler(svc InstanceServiceHandler, opts ...connect.Handl
 			instanceServiceUpdateInstanceSettingHandler.ServeHTTP(w, r)
 		case InstanceServiceTestInstanceEmailSettingProcedure:
 			instanceServiceTestInstanceEmailSettingHandler.ServeHTTP(w, r)
+		case InstanceServiceRunNotificationCleanupProcedure:
+			instanceServiceRunNotificationCleanupHandler.ServeHTTP(w, r)
+		case InstanceServiceListNotificationCleanupRunsProcedure:
+			instanceServiceListNotificationCleanupRunsHandler.ServeHTTP(w, r)
 		case InstanceServiceGetInstanceStatsProcedure:
 			instanceServiceGetInstanceStatsHandler.ServeHTTP(w, r)
 		case InstanceServiceListUsageLimitsProcedure:
@@ -413,6 +475,14 @@ func (UnimplementedInstanceServiceHandler) UpdateInstanceSetting(context.Context
 
 func (UnimplementedInstanceServiceHandler) TestInstanceEmailSetting(context.Context, *connect.Request[api.TestInstanceEmailSettingRequest]) (*connect.Response[emptypb.Empty], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.InstanceService.TestInstanceEmailSetting is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) RunNotificationCleanup(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[api.NotificationCleanupRunInfo], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.InstanceService.RunNotificationCleanup is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) ListNotificationCleanupRuns(context.Context, *connect.Request[api.ListNotificationCleanupRunsRequest]) (*connect.Response[api.ListNotificationCleanupRunsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.InstanceService.ListNotificationCleanupRuns is not implemented"))
 }
 
 func (UnimplementedInstanceServiceHandler) GetInstanceStats(context.Context, *connect.Request[api.GetInstanceStatsRequest]) (*connect.Response[api.InstanceStats], error) {

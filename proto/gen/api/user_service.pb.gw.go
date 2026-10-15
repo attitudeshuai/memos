@@ -1073,6 +1073,96 @@ func local_request_UserService_DeleteUserNotification_0(ctx context.Context, mar
 	return msg, metadata, err
 }
 
+func request_UserService_BatchUpdateUserNotifications_0(ctx context.Context, marshaler runtime.Marshaler, client UserServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq BatchUpdateUserNotificationsRequest
+		metadata runtime.ServerMetadata
+		err      error
+	)
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Scope); err != nil && !errors.Is(err, io.EOF) {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	val, ok := pathParams["parent"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "parent")
+	}
+	protoReq.Parent, err = runtime.String(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "parent", err)
+	}
+	if req.Body != nil {
+		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	msg, err := client.BatchUpdateUserNotifications(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+}
+
+func local_request_UserService_BatchUpdateUserNotifications_0(ctx context.Context, marshaler runtime.Marshaler, server UserServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq BatchUpdateUserNotificationsRequest
+		metadata runtime.ServerMetadata
+		err      error
+	)
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Scope); err != nil && !errors.Is(err, io.EOF) {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	val, ok := pathParams["parent"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "parent")
+	}
+	protoReq.Parent, err = runtime.String(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "parent", err)
+	}
+	msg, err := server.BatchUpdateUserNotifications(ctx, &protoReq)
+	return msg, metadata, err
+}
+
+func request_UserService_BatchDeleteUserNotifications_0(ctx context.Context, marshaler runtime.Marshaler, client UserServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq BatchDeleteUserNotificationsRequest
+		metadata runtime.ServerMetadata
+		err      error
+	)
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Scope); err != nil && !errors.Is(err, io.EOF) {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	val, ok := pathParams["parent"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "parent")
+	}
+	protoReq.Parent, err = runtime.String(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "parent", err)
+	}
+	if req.Body != nil {
+		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	msg, err := client.BatchDeleteUserNotifications(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+}
+
+func local_request_UserService_BatchDeleteUserNotifications_0(ctx context.Context, marshaler runtime.Marshaler, server UserServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq BatchDeleteUserNotificationsRequest
+		metadata runtime.ServerMetadata
+		err      error
+	)
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Scope); err != nil && !errors.Is(err, io.EOF) {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	val, ok := pathParams["parent"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "parent")
+	}
+	protoReq.Parent, err = runtime.String(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "parent", err)
+	}
+	msg, err := server.BatchDeleteUserNotifications(ctx, &protoReq)
+	return msg, metadata, err
+}
+
 func request_UserService_ListUserWebhooks_0(ctx context.Context, marshaler runtime.Marshaler, client UserServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq ListUserWebhooksRequest
@@ -2105,6 +2195,46 @@ func RegisterUserServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		}
 		forward_UserService_DeleteUserNotification_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodPost, pattern_UserService_BatchUpdateUserNotifications_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/memos.api.UserService/BatchUpdateUserNotifications", runtime.WithHTTPPathPattern("/api/{parent=users/*}/notifications:batchUpdate"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_UserService_BatchUpdateUserNotifications_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_UserService_BatchUpdateUserNotifications_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
+	mux.Handle(http.MethodPost, pattern_UserService_BatchDeleteUserNotifications_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/memos.api.UserService/BatchDeleteUserNotifications", runtime.WithHTTPPathPattern("/api/{parent=users/*}/notifications:batchDelete"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_UserService_BatchDeleteUserNotifications_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_UserService_BatchDeleteUserNotifications_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodGet, pattern_UserService_ListUserWebhooks_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -2765,6 +2895,40 @@ func RegisterUserServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		}
 		forward_UserService_DeleteUserNotification_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodPost, pattern_UserService_BatchUpdateUserNotifications_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/memos.api.UserService/BatchUpdateUserNotifications", runtime.WithHTTPPathPattern("/api/{parent=users/*}/notifications:batchUpdate"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_UserService_BatchUpdateUserNotifications_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_UserService_BatchUpdateUserNotifications_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
+	mux.Handle(http.MethodPost, pattern_UserService_BatchDeleteUserNotifications_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/memos.api.UserService/BatchDeleteUserNotifications", runtime.WithHTTPPathPattern("/api/{parent=users/*}/notifications:batchDelete"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_UserService_BatchDeleteUserNotifications_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_UserService_BatchDeleteUserNotifications_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodGet, pattern_UserService_ListUserWebhooks_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -3007,75 +3171,79 @@ func RegisterUserServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 }
 
 var (
-	pattern_UserService_ListUsers_0                   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"api", "users"}, ""))
-	pattern_UserService_GetUser_0                     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2}, []string{"api", "users", "name"}, ""))
-	pattern_UserService_BatchGetUsers_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"api", "users"}, "batchGet"))
-	pattern_UserService_CreateUser_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"api", "users"}, ""))
-	pattern_UserService_UpdateUser_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2}, []string{"api", "users", "user.name"}, ""))
-	pattern_UserService_DeleteUser_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2}, []string{"api", "users", "name"}, ""))
-	pattern_UserService_ListUserSettings_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "settings"}, ""))
-	pattern_UserService_GetUserSetting_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "settings", "name"}, ""))
-	pattern_UserService_UpdateUserSetting_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "settings", "user_setting.name"}, ""))
-	pattern_UserService_ListUserStats_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "stats"}, ""))
-	pattern_UserService_GetUserStats_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2}, []string{"api", "users", "name"}, "getStats"))
-	pattern_UserService_GetUserUsage_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 4, 3, 5, 3}, []string{"api", "users", "usage", "name"}, ""))
-	pattern_UserService_ListMemoViews_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "views"}, ""))
-	pattern_UserService_GetMemoView_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "views", "name"}, ""))
-	pattern_UserService_CreateMemoView_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "views"}, ""))
-	pattern_UserService_UpdateMemoView_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "views", "memo_view.name"}, ""))
-	pattern_UserService_DeleteMemoView_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "views", "name"}, ""))
-	pattern_UserService_ListUserNotifications_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "notifications"}, ""))
-	pattern_UserService_UpdateUserNotification_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "notifications", "notification.name"}, ""))
-	pattern_UserService_DeleteUserNotification_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "notifications", "name"}, ""))
-	pattern_UserService_ListUserWebhooks_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "webhooks"}, ""))
-	pattern_UserService_CreateUserWebhook_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "webhooks"}, ""))
-	pattern_UserService_UpdateUserWebhook_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "webhooks", "webhook.name"}, ""))
-	pattern_UserService_DeleteUserWebhook_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "webhooks", "name"}, ""))
-	pattern_UserService_GetUserWebhookSigningSecret_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "webhooks", "name"}, "getSigningSecret"))
-	pattern_UserService_ListLinkedIdentities_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "linkedIdentities"}, ""))
-	pattern_UserService_GetLinkedIdentity_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "linkedIdentities", "name"}, ""))
-	pattern_UserService_CreateLinkedIdentity_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "linkedIdentities"}, ""))
-	pattern_UserService_DeleteLinkedIdentity_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "linkedIdentities", "name"}, ""))
-	pattern_UserService_ListPersonalAccessTokens_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "personalAccessTokens"}, ""))
-	pattern_UserService_CreatePersonalAccessToken_0   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "personalAccessTokens"}, ""))
-	pattern_UserService_DeletePersonalAccessToken_0   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "personalAccessTokens", "name"}, ""))
-	pattern_UserService_ExportMemos_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2}, []string{"api", "users", "name"}, "exportMemos"))
-	pattern_UserService_ImportMemos_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2}, []string{"api", "users", "name"}, "importMemos"))
+	pattern_UserService_ListUsers_0                    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"api", "users"}, ""))
+	pattern_UserService_GetUser_0                      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2}, []string{"api", "users", "name"}, ""))
+	pattern_UserService_BatchGetUsers_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"api", "users"}, "batchGet"))
+	pattern_UserService_CreateUser_0                   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"api", "users"}, ""))
+	pattern_UserService_UpdateUser_0                   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2}, []string{"api", "users", "user.name"}, ""))
+	pattern_UserService_DeleteUser_0                   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2}, []string{"api", "users", "name"}, ""))
+	pattern_UserService_ListUserSettings_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "settings"}, ""))
+	pattern_UserService_GetUserSetting_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "settings", "name"}, ""))
+	pattern_UserService_UpdateUserSetting_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "settings", "user_setting.name"}, ""))
+	pattern_UserService_ListUserStats_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "stats"}, ""))
+	pattern_UserService_GetUserStats_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2}, []string{"api", "users", "name"}, "getStats"))
+	pattern_UserService_GetUserUsage_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 4, 3, 5, 3}, []string{"api", "users", "usage", "name"}, ""))
+	pattern_UserService_ListMemoViews_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "views"}, ""))
+	pattern_UserService_GetMemoView_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "views", "name"}, ""))
+	pattern_UserService_CreateMemoView_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "views"}, ""))
+	pattern_UserService_UpdateMemoView_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "views", "memo_view.name"}, ""))
+	pattern_UserService_DeleteMemoView_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "views", "name"}, ""))
+	pattern_UserService_ListUserNotifications_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "notifications"}, ""))
+	pattern_UserService_UpdateUserNotification_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "notifications", "notification.name"}, ""))
+	pattern_UserService_DeleteUserNotification_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "notifications", "name"}, ""))
+	pattern_UserService_BatchUpdateUserNotifications_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "notifications"}, "batchUpdate"))
+	pattern_UserService_BatchDeleteUserNotifications_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "notifications"}, "batchDelete"))
+	pattern_UserService_ListUserWebhooks_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "webhooks"}, ""))
+	pattern_UserService_CreateUserWebhook_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "webhooks"}, ""))
+	pattern_UserService_UpdateUserWebhook_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "webhooks", "webhook.name"}, ""))
+	pattern_UserService_DeleteUserWebhook_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "webhooks", "name"}, ""))
+	pattern_UserService_GetUserWebhookSigningSecret_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "webhooks", "name"}, "getSigningSecret"))
+	pattern_UserService_ListLinkedIdentities_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "linkedIdentities"}, ""))
+	pattern_UserService_GetLinkedIdentity_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "linkedIdentities", "name"}, ""))
+	pattern_UserService_CreateLinkedIdentity_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "linkedIdentities"}, ""))
+	pattern_UserService_DeleteLinkedIdentity_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "linkedIdentities", "name"}, ""))
+	pattern_UserService_ListPersonalAccessTokens_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "personalAccessTokens"}, ""))
+	pattern_UserService_CreatePersonalAccessToken_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2, 2, 3}, []string{"api", "users", "parent", "personalAccessTokens"}, ""))
+	pattern_UserService_DeletePersonalAccessToken_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 2, 2, 1, 0, 4, 4, 5, 3}, []string{"api", "users", "personalAccessTokens", "name"}, ""))
+	pattern_UserService_ExportMemos_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2}, []string{"api", "users", "name"}, "exportMemos"))
+	pattern_UserService_ImportMemos_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 2, 5, 2}, []string{"api", "users", "name"}, "importMemos"))
 )
 
 var (
-	forward_UserService_ListUsers_0                   = runtime.ForwardResponseMessage
-	forward_UserService_GetUser_0                     = runtime.ForwardResponseMessage
-	forward_UserService_BatchGetUsers_0               = runtime.ForwardResponseMessage
-	forward_UserService_CreateUser_0                  = runtime.ForwardResponseMessage
-	forward_UserService_UpdateUser_0                  = runtime.ForwardResponseMessage
-	forward_UserService_DeleteUser_0                  = runtime.ForwardResponseMessage
-	forward_UserService_ListUserSettings_0            = runtime.ForwardResponseMessage
-	forward_UserService_GetUserSetting_0              = runtime.ForwardResponseMessage
-	forward_UserService_UpdateUserSetting_0           = runtime.ForwardResponseMessage
-	forward_UserService_ListUserStats_0               = runtime.ForwardResponseMessage
-	forward_UserService_GetUserStats_0                = runtime.ForwardResponseMessage
-	forward_UserService_GetUserUsage_0                = runtime.ForwardResponseMessage
-	forward_UserService_ListMemoViews_0               = runtime.ForwardResponseMessage
-	forward_UserService_GetMemoView_0                 = runtime.ForwardResponseMessage
-	forward_UserService_CreateMemoView_0              = runtime.ForwardResponseMessage
-	forward_UserService_UpdateMemoView_0              = runtime.ForwardResponseMessage
-	forward_UserService_DeleteMemoView_0              = runtime.ForwardResponseMessage
-	forward_UserService_ListUserNotifications_0       = runtime.ForwardResponseMessage
-	forward_UserService_UpdateUserNotification_0      = runtime.ForwardResponseMessage
-	forward_UserService_DeleteUserNotification_0      = runtime.ForwardResponseMessage
-	forward_UserService_ListUserWebhooks_0            = runtime.ForwardResponseMessage
-	forward_UserService_CreateUserWebhook_0           = runtime.ForwardResponseMessage
-	forward_UserService_UpdateUserWebhook_0           = runtime.ForwardResponseMessage
-	forward_UserService_DeleteUserWebhook_0           = runtime.ForwardResponseMessage
-	forward_UserService_GetUserWebhookSigningSecret_0 = runtime.ForwardResponseMessage
-	forward_UserService_ListLinkedIdentities_0        = runtime.ForwardResponseMessage
-	forward_UserService_GetLinkedIdentity_0           = runtime.ForwardResponseMessage
-	forward_UserService_CreateLinkedIdentity_0        = runtime.ForwardResponseMessage
-	forward_UserService_DeleteLinkedIdentity_0        = runtime.ForwardResponseMessage
-	forward_UserService_ListPersonalAccessTokens_0    = runtime.ForwardResponseMessage
-	forward_UserService_CreatePersonalAccessToken_0   = runtime.ForwardResponseMessage
-	forward_UserService_DeletePersonalAccessToken_0   = runtime.ForwardResponseMessage
-	forward_UserService_ExportMemos_0                 = runtime.ForwardResponseMessage
-	forward_UserService_ImportMemos_0                 = runtime.ForwardResponseMessage
+	forward_UserService_ListUsers_0                    = runtime.ForwardResponseMessage
+	forward_UserService_GetUser_0                      = runtime.ForwardResponseMessage
+	forward_UserService_BatchGetUsers_0                = runtime.ForwardResponseMessage
+	forward_UserService_CreateUser_0                   = runtime.ForwardResponseMessage
+	forward_UserService_UpdateUser_0                   = runtime.ForwardResponseMessage
+	forward_UserService_DeleteUser_0                   = runtime.ForwardResponseMessage
+	forward_UserService_ListUserSettings_0             = runtime.ForwardResponseMessage
+	forward_UserService_GetUserSetting_0               = runtime.ForwardResponseMessage
+	forward_UserService_UpdateUserSetting_0            = runtime.ForwardResponseMessage
+	forward_UserService_ListUserStats_0                = runtime.ForwardResponseMessage
+	forward_UserService_GetUserStats_0                 = runtime.ForwardResponseMessage
+	forward_UserService_GetUserUsage_0                 = runtime.ForwardResponseMessage
+	forward_UserService_ListMemoViews_0                = runtime.ForwardResponseMessage
+	forward_UserService_GetMemoView_0                  = runtime.ForwardResponseMessage
+	forward_UserService_CreateMemoView_0               = runtime.ForwardResponseMessage
+	forward_UserService_UpdateMemoView_0               = runtime.ForwardResponseMessage
+	forward_UserService_DeleteMemoView_0               = runtime.ForwardResponseMessage
+	forward_UserService_ListUserNotifications_0        = runtime.ForwardResponseMessage
+	forward_UserService_UpdateUserNotification_0       = runtime.ForwardResponseMessage
+	forward_UserService_DeleteUserNotification_0       = runtime.ForwardResponseMessage
+	forward_UserService_BatchUpdateUserNotifications_0 = runtime.ForwardResponseMessage
+	forward_UserService_BatchDeleteUserNotifications_0 = runtime.ForwardResponseMessage
+	forward_UserService_ListUserWebhooks_0             = runtime.ForwardResponseMessage
+	forward_UserService_CreateUserWebhook_0            = runtime.ForwardResponseMessage
+	forward_UserService_UpdateUserWebhook_0            = runtime.ForwardResponseMessage
+	forward_UserService_DeleteUserWebhook_0            = runtime.ForwardResponseMessage
+	forward_UserService_GetUserWebhookSigningSecret_0  = runtime.ForwardResponseMessage
+	forward_UserService_ListLinkedIdentities_0         = runtime.ForwardResponseMessage
+	forward_UserService_GetLinkedIdentity_0            = runtime.ForwardResponseMessage
+	forward_UserService_CreateLinkedIdentity_0         = runtime.ForwardResponseMessage
+	forward_UserService_DeleteLinkedIdentity_0         = runtime.ForwardResponseMessage
+	forward_UserService_ListPersonalAccessTokens_0     = runtime.ForwardResponseMessage
+	forward_UserService_CreatePersonalAccessToken_0    = runtime.ForwardResponseMessage
+	forward_UserService_DeletePersonalAccessToken_0    = runtime.ForwardResponseMessage
+	forward_UserService_ExportMemos_0                  = runtime.ForwardResponseMessage
+	forward_UserService_ImportMemos_0                  = runtime.ForwardResponseMessage
 )

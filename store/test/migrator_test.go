@@ -43,11 +43,12 @@ func TestFreshInstall(t *testing.T) {
 	// NewTestingStore creates a fresh database and runs Migrate()
 	// which applies LATEST.sql for uninitialized databases
 	ts := NewTestingStore(ctx, t)
+	defer ts.Close()
 
 	// Verify migration completed successfully
 	currentSchemaVersion, err := ts.GetCurrentSchemaVersion()
 	require.NoError(t, err)
-	require.Equal(t, "26.10.1", currentSchemaVersion, "fresh install should record the latest migration")
+	require.Equal(t, "26.10.2", currentSchemaVersion, "fresh install should record the latest migration")
 
 	// Verify we can read instance settings (basic sanity check)
 	instanceSetting, err := ts.GetInstanceBasicSetting(ctx)
@@ -86,10 +87,11 @@ func TestFreshInstall(t *testing.T) {
 }
 
 // requireCreatorIndexes checks the indexes that usage limit checks rely on to
-// count a user's memos and sum a user's attachment sizes.
+// count a user's memos and sum a user's attachment sizes, plus the inbox
+// index backing per-receiver notification listing and retention cleanup.
 func requireCreatorIndexes(ctx context.Context, t *testing.T, ts *store.Store, driver string) {
 	t.Helper()
-	for _, indexName := range []string{"idx_memo_creator_id", "idx_attachment_creator_id"} {
+	for _, indexName := range []string{"idx_memo_creator_id", "idx_attachment_creator_id", "idx_inbox_receiver_created"} {
 		var query string
 		switch driver {
 		case "sqlite":
@@ -116,6 +118,7 @@ func TestMigrationReRun(t *testing.T) {
 	ctx := context.Background()
 	// Use the shared testing store which already runs migrations on init
 	ts := NewTestingStore(ctx, t)
+	defer ts.Close()
 
 	// Get current version
 	initialVersion, err := ts.GetCurrentSchemaVersion()
@@ -138,6 +141,7 @@ func TestMigrationWithData(t *testing.T) {
 
 	ctx := context.Background()
 	ts := NewTestingStore(ctx, t)
+	defer ts.Close()
 
 	// Create a user and memo before re-running migration
 	user, err := createTestingHostUser(ctx, ts)
@@ -168,6 +172,7 @@ func TestMigrationMultipleReRuns(t *testing.T) {
 
 	ctx := context.Background()
 	ts := NewTestingStore(ctx, t)
+	defer ts.Close()
 
 	// Get initial version
 	initialVersion, err := ts.GetCurrentSchemaVersion()

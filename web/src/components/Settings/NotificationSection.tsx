@@ -16,11 +16,14 @@ import {
   InstanceSetting_NotificationSetting,
   InstanceSetting_NotificationSetting_EmailSetting,
   InstanceSetting_NotificationSetting_EmailSettingSchema,
+  InstanceSetting_NotificationSetting_RetentionSetting,
+  InstanceSetting_NotificationSetting_RetentionSettingSchema,
   InstanceSetting_NotificationSettingSchema,
   InstanceSettingSchema,
   TestInstanceEmailSettingRequestSchema,
 } from "@/types/proto/api/instance_service_pb";
 import { useTranslate } from "@/utils/i18n";
+import NotificationRetentionGroup from "./NotificationRetentionGroup";
 import SettingGroup from "./SettingGroup";
 import SettingRow from "./SettingRow";
 import SettingSection from "./SettingSection";

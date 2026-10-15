@@ -21,40 +21,42 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	UserService_ListUsers_FullMethodName                   = "/memos.api.UserService/ListUsers"
-	UserService_GetUser_FullMethodName                     = "/memos.api.UserService/GetUser"
-	UserService_BatchGetUsers_FullMethodName               = "/memos.api.UserService/BatchGetUsers"
-	UserService_CreateUser_FullMethodName                  = "/memos.api.UserService/CreateUser"
-	UserService_UpdateUser_FullMethodName                  = "/memos.api.UserService/UpdateUser"
-	UserService_DeleteUser_FullMethodName                  = "/memos.api.UserService/DeleteUser"
-	UserService_ListUserSettings_FullMethodName            = "/memos.api.UserService/ListUserSettings"
-	UserService_GetUserSetting_FullMethodName              = "/memos.api.UserService/GetUserSetting"
-	UserService_UpdateUserSetting_FullMethodName           = "/memos.api.UserService/UpdateUserSetting"
-	UserService_ListUserStats_FullMethodName               = "/memos.api.UserService/ListUserStats"
-	UserService_GetUserStats_FullMethodName                = "/memos.api.UserService/GetUserStats"
-	UserService_GetUserUsage_FullMethodName                = "/memos.api.UserService/GetUserUsage"
-	UserService_ListMemoViews_FullMethodName               = "/memos.api.UserService/ListMemoViews"
-	UserService_GetMemoView_FullMethodName                 = "/memos.api.UserService/GetMemoView"
-	UserService_CreateMemoView_FullMethodName              = "/memos.api.UserService/CreateMemoView"
-	UserService_UpdateMemoView_FullMethodName              = "/memos.api.UserService/UpdateMemoView"
-	UserService_DeleteMemoView_FullMethodName              = "/memos.api.UserService/DeleteMemoView"
-	UserService_ListUserNotifications_FullMethodName       = "/memos.api.UserService/ListUserNotifications"
-	UserService_UpdateUserNotification_FullMethodName      = "/memos.api.UserService/UpdateUserNotification"
-	UserService_DeleteUserNotification_FullMethodName      = "/memos.api.UserService/DeleteUserNotification"
-	UserService_ListUserWebhooks_FullMethodName            = "/memos.api.UserService/ListUserWebhooks"
-	UserService_CreateUserWebhook_FullMethodName           = "/memos.api.UserService/CreateUserWebhook"
-	UserService_UpdateUserWebhook_FullMethodName           = "/memos.api.UserService/UpdateUserWebhook"
-	UserService_DeleteUserWebhook_FullMethodName           = "/memos.api.UserService/DeleteUserWebhook"
-	UserService_GetUserWebhookSigningSecret_FullMethodName = "/memos.api.UserService/GetUserWebhookSigningSecret"
-	UserService_ListLinkedIdentities_FullMethodName        = "/memos.api.UserService/ListLinkedIdentities"
-	UserService_GetLinkedIdentity_FullMethodName           = "/memos.api.UserService/GetLinkedIdentity"
-	UserService_CreateLinkedIdentity_FullMethodName        = "/memos.api.UserService/CreateLinkedIdentity"
-	UserService_DeleteLinkedIdentity_FullMethodName        = "/memos.api.UserService/DeleteLinkedIdentity"
-	UserService_ListPersonalAccessTokens_FullMethodName    = "/memos.api.UserService/ListPersonalAccessTokens"
-	UserService_CreatePersonalAccessToken_FullMethodName   = "/memos.api.UserService/CreatePersonalAccessToken"
-	UserService_DeletePersonalAccessToken_FullMethodName   = "/memos.api.UserService/DeletePersonalAccessToken"
-	UserService_ExportMemos_FullMethodName                 = "/memos.api.UserService/ExportMemos"
-	UserService_ImportMemos_FullMethodName                 = "/memos.api.UserService/ImportMemos"
+	UserService_ListUsers_FullMethodName                    = "/memos.api.UserService/ListUsers"
+	UserService_GetUser_FullMethodName                      = "/memos.api.UserService/GetUser"
+	UserService_BatchGetUsers_FullMethodName                = "/memos.api.UserService/BatchGetUsers"
+	UserService_CreateUser_FullMethodName                   = "/memos.api.UserService/CreateUser"
+	UserService_UpdateUser_FullMethodName                   = "/memos.api.UserService/UpdateUser"
+	UserService_DeleteUser_FullMethodName                   = "/memos.api.UserService/DeleteUser"
+	UserService_ListUserSettings_FullMethodName             = "/memos.api.UserService/ListUserSettings"
+	UserService_GetUserSetting_FullMethodName               = "/memos.api.UserService/GetUserSetting"
+	UserService_UpdateUserSetting_FullMethodName            = "/memos.api.UserService/UpdateUserSetting"
+	UserService_ListUserStats_FullMethodName                = "/memos.api.UserService/ListUserStats"
+	UserService_GetUserStats_FullMethodName                 = "/memos.api.UserService/GetUserStats"
+	UserService_GetUserUsage_FullMethodName                 = "/memos.api.UserService/GetUserUsage"
+	UserService_ListMemoViews_FullMethodName                = "/memos.api.UserService/ListMemoViews"
+	UserService_GetMemoView_FullMethodName                  = "/memos.api.UserService/GetMemoView"
+	UserService_CreateMemoView_FullMethodName               = "/memos.api.UserService/CreateMemoView"
+	UserService_UpdateMemoView_FullMethodName               = "/memos.api.UserService/UpdateMemoView"
+	UserService_DeleteMemoView_FullMethodName               = "/memos.api.UserService/DeleteMemoView"
+	UserService_ListUserNotifications_FullMethodName        = "/memos.api.UserService/ListUserNotifications"
+	UserService_UpdateUserNotification_FullMethodName       = "/memos.api.UserService/UpdateUserNotification"
+	UserService_DeleteUserNotification_FullMethodName       = "/memos.api.UserService/DeleteUserNotification"
+	UserService_BatchUpdateUserNotifications_FullMethodName = "/memos.api.UserService/BatchUpdateUserNotifications"
+	UserService_BatchDeleteUserNotifications_FullMethodName = "/memos.api.UserService/BatchDeleteUserNotifications"
+	UserService_ListUserWebhooks_FullMethodName             = "/memos.api.UserService/ListUserWebhooks"
+	UserService_CreateUserWebhook_FullMethodName            = "/memos.api.UserService/CreateUserWebhook"
+	UserService_UpdateUserWebhook_FullMethodName            = "/memos.api.UserService/UpdateUserWebhook"
+	UserService_DeleteUserWebhook_FullMethodName            = "/memos.api.UserService/DeleteUserWebhook"
+	UserService_GetUserWebhookSigningSecret_FullMethodName  = "/memos.api.UserService/GetUserWebhookSigningSecret"
+	UserService_ListLinkedIdentities_FullMethodName         = "/memos.api.UserService/ListLinkedIdentities"
+	UserService_GetLinkedIdentity_FullMethodName            = "/memos.api.UserService/GetLinkedIdentity"
+	UserService_CreateLinkedIdentity_FullMethodName         = "/memos.api.UserService/CreateLinkedIdentity"
+	UserService_DeleteLinkedIdentity_FullMethodName         = "/memos.api.UserService/DeleteLinkedIdentity"
+	UserService_ListPersonalAccessTokens_FullMethodName     = "/memos.api.UserService/ListPersonalAccessTokens"
+	UserService_CreatePersonalAccessToken_FullMethodName    = "/memos.api.UserService/CreatePersonalAccessToken"
+	UserService_DeletePersonalAccessToken_FullMethodName    = "/memos.api.UserService/DeletePersonalAccessToken"
+	UserService_ExportMemos_FullMethodName                  = "/memos.api.UserService/ExportMemos"
+	UserService_ImportMemos_FullMethodName                  = "/memos.api.UserService/ImportMemos"
 )
 
 // UserServiceClient is the client API for UserService service.
@@ -123,6 +125,14 @@ type UserServiceClient interface {
 	// DeleteUserNotification permanently deletes a notification. Only the
 	// receiver may call it.
 	DeleteUserNotification(ctx context.Context, in *DeleteUserNotificationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// BatchUpdateUserNotifications marks every notification matched by scope as
+	// read (ARCHIVED). Only the receiver may call it. Only notifications that are
+	// currently UNREAD change, and the response count reflects those rows.
+	BatchUpdateUserNotifications(ctx context.Context, in *BatchUpdateUserNotificationsRequest, opts ...grpc.CallOption) (*BatchUpdateUserNotificationsResponse, error)
+	// BatchDeleteUserNotifications permanently deletes every notification
+	// matched by scope regardless of its status. Only the receiver may call it.
+	// The response count reflects the rows actually deleted.
+	BatchDeleteUserNotifications(ctx context.Context, in *BatchDeleteUserNotificationsRequest, opts ...grpc.CallOption) (*BatchDeleteUserNotificationsResponse, error)
 	// ListUserWebhooks lists a user's webhooks. Only the user may call it.
 	ListUserWebhooks(ctx context.Context, in *ListUserWebhooksRequest, opts ...grpc.CallOption) (*ListUserWebhooksResponse, error)
 	// CreateUserWebhook creates a webhook for a user. Only the user may call it.
@@ -383,6 +393,26 @@ func (c *userServiceClient) DeleteUserNotification(ctx context.Context, in *Dele
 	return out, nil
 }
 
+func (c *userServiceClient) BatchUpdateUserNotifications(ctx context.Context, in *BatchUpdateUserNotificationsRequest, opts ...grpc.CallOption) (*BatchUpdateUserNotificationsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BatchUpdateUserNotificationsResponse)
+	err := c.cc.Invoke(ctx, UserService_BatchUpdateUserNotifications_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) BatchDeleteUserNotifications(ctx context.Context, in *BatchDeleteUserNotificationsRequest, opts ...grpc.CallOption) (*BatchDeleteUserNotificationsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BatchDeleteUserNotificationsResponse)
+	err := c.cc.Invoke(ctx, UserService_BatchDeleteUserNotifications_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *userServiceClient) ListUserWebhooks(ctx context.Context, in *ListUserWebhooksRequest, opts ...grpc.CallOption) (*ListUserWebhooksResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListUserWebhooksResponse)
@@ -589,6 +619,14 @@ type UserServiceServer interface {
 	// DeleteUserNotification permanently deletes a notification. Only the
 	// receiver may call it.
 	DeleteUserNotification(context.Context, *DeleteUserNotificationRequest) (*emptypb.Empty, error)
+	// BatchUpdateUserNotifications marks every notification matched by scope as
+	// read (ARCHIVED). Only the receiver may call it. Only notifications that are
+	// currently UNREAD change, and the response count reflects those rows.
+	BatchUpdateUserNotifications(context.Context, *BatchUpdateUserNotificationsRequest) (*BatchUpdateUserNotificationsResponse, error)
+	// BatchDeleteUserNotifications permanently deletes every notification
+	// matched by scope regardless of its status. Only the receiver may call it.
+	// The response count reflects the rows actually deleted.
+	BatchDeleteUserNotifications(context.Context, *BatchDeleteUserNotificationsRequest) (*BatchDeleteUserNotificationsResponse, error)
 	// ListUserWebhooks lists a user's webhooks. Only the user may call it.
 	ListUserWebhooks(context.Context, *ListUserWebhooksRequest) (*ListUserWebhooksResponse, error)
 	// CreateUserWebhook creates a webhook for a user. Only the user may call it.
@@ -708,6 +746,12 @@ func (UnimplementedUserServiceServer) UpdateUserNotification(context.Context, *U
 }
 func (UnimplementedUserServiceServer) DeleteUserNotification(context.Context, *DeleteUserNotificationRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteUserNotification not implemented")
+}
+func (UnimplementedUserServiceServer) BatchUpdateUserNotifications(context.Context, *BatchUpdateUserNotificationsRequest) (*BatchUpdateUserNotificationsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method BatchUpdateUserNotifications not implemented")
+}
+func (UnimplementedUserServiceServer) BatchDeleteUserNotifications(context.Context, *BatchDeleteUserNotificationsRequest) (*BatchDeleteUserNotificationsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method BatchDeleteUserNotifications not implemented")
 }
 func (UnimplementedUserServiceServer) ListUserWebhooks(context.Context, *ListUserWebhooksRequest) (*ListUserWebhooksResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListUserWebhooks not implemented")
@@ -1132,6 +1176,42 @@ func _UserService_DeleteUserNotification_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_BatchUpdateUserNotifications_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BatchUpdateUserNotificationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).BatchUpdateUserNotifications(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_BatchUpdateUserNotifications_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).BatchUpdateUserNotifications(ctx, req.(*BatchUpdateUserNotificationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_BatchDeleteUserNotifications_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BatchDeleteUserNotificationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).BatchDeleteUserNotifications(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_BatchDeleteUserNotifications_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).BatchDeleteUserNotifications(ctx, req.(*BatchDeleteUserNotificationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _UserService_ListUserWebhooks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListUserWebhooksRequest)
 	if err := dec(in); err != nil {
@@ -1470,6 +1550,14 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteUserNotification",
 			Handler:    _UserService_DeleteUserNotification_Handler,
+		},
+		{
+			MethodName: "BatchUpdateUserNotifications",
+			Handler:    _UserService_BatchUpdateUserNotifications_Handler,
+		},
+		{
+			MethodName: "BatchDeleteUserNotifications",
+			Handler:    _UserService_BatchDeleteUserNotifications_Handler,
 		},
 		{
 			MethodName: "ListUserWebhooks",

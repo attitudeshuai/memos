@@ -72,6 +72,9 @@ type APIService struct {
 	MarkdownService         markdown.Service
 	SSEHub                  *SSEHub
 	NotificationEmailSender notification.EmailSender
+	// NotificationRetention applies the instance notification retention
+	// policy on a schedule and for the manual RunNotificationCleanup RPC.
+	NotificationRetention *notification.RetentionSweeper
 
 	// RateLimiter bounds request rates; nil disables every limit.
 	RateLimiter ratelimit.Limiter
@@ -107,6 +110,7 @@ func NewAPIService(secret string, profile *profile.Profile, store *store.Store) 
 		MarkdownService:          markdownService,
 		SSEHub:                   NewSSEHub(),
 		NotificationEmailSender:  nil,
+		NotificationRetention:    notification.NewRetentionSweeper(store),
 		RateLimiter:              newProfileRateLimiter(profile),
 		thumbnailSemaphore:       semaphore.NewWeighted(3), // Limit to 3 concurrent thumbnail generations
 		imageProcessingSemaphore: semaphore.NewWeighted(2),

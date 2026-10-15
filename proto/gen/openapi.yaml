@@ -1376,6 +1376,54 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/notificationCleanupRuns:
+        get:
+            tags:
+                - InstanceService
+            description: |-
+                ListNotificationCleanupRuns lists recent notification cleanup runs,
+                 newest first. Admin only.
+            operationId: InstanceService_ListNotificationCleanupRuns
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListNotificationCleanupRunsResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/notificationCleanupRuns:run:
+        post:
+            tags:
+                - InstanceService
+            description: |-
+                RunNotificationCleanup applies the configured notification retention
+                 policy once and returns the run record. Admin only. Fails with
+                 FAILED_PRECONDITION while another cleanup is already running on this
+                 instance. A run is recorded even when no policy is configured.
+            operationId: InstanceService_RunNotificationCleanup
+            requestBody:
+                content:
+                    application/json: {}
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotificationCleanupRunInfo'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/shares/{shareToken}/memo:
         get:
             tags:
@@ -2557,6 +2605,76 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/users/{user}/notifications:batchDelete:
+        post:
+            tags:
+                - UserService
+            description: |-
+                BatchDeleteUserNotifications permanently deletes every notification
+                 matched by scope regardless of its status. Only the receiver may call it.
+                 The response count reflects the rows actually deleted.
+            operationId: UserService_BatchDeleteUserNotifications
+            parameters:
+                - name: user
+                  in: path
+                  description: The user id.
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UserNotificationBatchScope'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BatchDeleteUserNotificationsResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/users/{user}/notifications:batchUpdate:
+        post:
+            tags:
+                - UserService
+            description: |-
+                BatchUpdateUserNotifications marks every notification matched by scope as
+                 read (ARCHIVED). Only the receiver may call it. Only notifications that are
+                 currently UNREAD change, and the response count reflects those rows.
+            operationId: UserService_BatchUpdateUserNotifications
+            parameters:
+                - name: user
+                  in: path
+                  description: The user id.
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UserNotificationBatchScope'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BatchUpdateUserNotificationsResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/users/{user}/personalAccessTokens:
         get:
             tags:
@@ -3458,6 +3576,14 @@ components:
                         Required. The names of the attachments to delete, at most 100. Duplicate names are ignored.
                          Format: attachments/{attachment}
             description: Request message for AttachmentService.BatchDeleteAttachments.
+        BatchDeleteUserNotificationsResponse:
+            type: object
+            properties:
+                affectedCount:
+                    type: integer
+                    description: Number of notifications actually deleted.
+                    format: int32
+            description: Response message for UserService.BatchDeleteUserNotifications.
         BatchGetInstanceSettingsRequest:
             required:
                 - names
@@ -3523,6 +3649,14 @@ components:
                         $ref: '#/components/schemas/User'
                     description: The active users that match the requested names.
             description: Response message for UserService.BatchGetUsers.
+        BatchUpdateUserNotificationsResponse:
+            type: object
+            properties:
+                affectedCount:
+                    type: integer
+                    description: Number of notifications actually changed from UNREAD to ARCHIVED.
+                    format: int32
+            description: Response message for UserService.BatchUpdateUserNotifications.
         Color:
             type: object
             properties:
@@ -4207,6 +4341,13 @@ components:
                     allOf:
                         - $ref: '#/components/schemas/NotificationSetting_EmailSetting'
                     description: The email delivery configuration.
+                retention:
+                    allOf:
+                        - $ref: '#/components/schemas/NotificationSetting_RetentionSetting'
+                    description: |-
+                        The retention policy that automatically removes old notifications. Both
+                         limits default to 0, which disables cleanup and keeps the historical
+                         behavior unchanged.
             description: NotificationSetting is the notification transport configuration.
         InstanceSetting_Storage:
             type: object
@@ -4478,6 +4619,15 @@ components:
                     type: string
                     description: A token to retrieve the next page. Empty when there are no more pages.
             description: Response message for MemoService.ListMemos.
+        ListNotificationCleanupRunsResponse:
+            type: object
+            properties:
+                cleanupRuns:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/NotificationCleanupRunInfo'
+                    description: The cleanup runs, newest first.
+            description: Response message for InstanceService.ListNotificationCleanupRuns.
         ListPersonalAccessTokensResponse:
             type: object
             properties:
@@ -4935,6 +5085,91 @@ components:
                     type: boolean
                     description: Whether the file embeds the motion video, as in an Android motion photo container.
             description: MotionMedia links the parts of a motion photo.
+        NotificationCleanupRunInfo:
+            type: object
+            properties:
+                name:
+                    readOnly: true
+                    type: string
+                    description: |-
+                        Output only. The resource name of the run.
+                         Format: notificationCleanupRuns/{notification_cleanup_run}
+                createTime:
+                    readOnly: true
+                    type: string
+                    description: Output only. When the run started.
+                    format: date-time
+                completeTime:
+                    readOnly: true
+                    type: string
+                    description: Output only. When the run finished. Unset while the run is in progress.
+                    format: date-time
+                trigger:
+                    readOnly: true
+                    enum:
+                        - TRIGGER_UNSPECIFIED
+                        - SCHEDULED
+                        - MANUAL
+                    type: string
+                    description: Output only. What started the run.
+                    format: enum
+                state:
+                    readOnly: true
+                    enum:
+                        - STATE_UNSPECIFIED
+                        - RUNNING
+                        - SUCCEEDED
+                        - FAILED
+                    type: string
+                    description: Output only. The outcome of the run.
+                    format: enum
+                watermarkInboxId:
+                    readOnly: true
+                    type: integer
+                    description: |-
+                        Output only. The inbox ID snapshot taken when the run started. Only
+                         notifications with IDs up to this value were eligible for deletion, so
+                         notifications dispatched during the run were never collected by it.
+                    format: int32
+                maxAgeDays:
+                    readOnly: true
+                    type: integer
+                    description: |-
+                        Output only. The configured max age in days for this run. 0 means the age
+                         rule was disabled.
+                    format: int32
+                maxPerUser:
+                    readOnly: true
+                    type: integer
+                    description: |-
+                        Output only. The configured per-user notification cap for this run. 0
+                         means the count rule was disabled.
+                    format: int32
+                ageCutoffTime:
+                    readOnly: true
+                    type: string
+                    description: |-
+                        Output only. The cutoff time used by the age rule. Notifications created
+                         strictly before it were eligible for deletion. Unset when the age rule
+                         was disabled.
+                    format: date-time
+                deletedAgeCount:
+                    readOnly: true
+                    type: integer
+                    description: Output only. Notifications deleted by the age rule.
+                    format: int32
+                deletedCapCount:
+                    readOnly: true
+                    type: integer
+                    description: Output only. Notifications deleted by the per-user count rule.
+                    format: int32
+                errorDetail:
+                    readOnly: true
+                    type: string
+                    description: Output only. The failure reason when state is FAILED; empty otherwise.
+            description: |-
+                NotificationCleanupRunInfo is the audit record of one notification
+                 retention cleanup run.
         NotificationSetting_EmailSetting:
             type: object
             properties:
@@ -4973,6 +5208,25 @@ components:
                     type: string
                     description: The Reply-To email address.
             description: EmailSetting is the SMTP configuration for notification emails.
+        NotificationSetting_RetentionSetting:
+            type: object
+            properties:
+                maxAgeDays:
+                    type: integer
+                    description: |-
+                        Delete notifications older than this many days. 0 disables age
+                         cleanup.
+                    format: int32
+                maxPerUser:
+                    type: integer
+                    description: |-
+                        Keep at most this many notifications per receiver, newest first. 0
+                         disables per-user count cleanup.
+                    format: int32
+            description: |-
+                RetentionSetting declares how long notifications are kept. Both limits
+                 apply independently to every receiver and to notifications of every
+                 status, including unread ones.
         OAuth2Config:
             type: object
             properties:
@@ -5706,6 +5960,30 @@ components:
                     description: Output only. The creation timestamp.
                     format: date-time
             description: UserNotification is a notification delivered to a user.
+        UserNotificationBatchScope:
+            type: object
+            properties:
+                type:
+                    enum:
+                        - TYPE_UNSPECIFIED
+                        - MEMO_COMMENT
+                        - MEMO_MENTION
+                        - SPACE_INVITATION
+                    type: string
+                    description: |-
+                        Optional. Restrict the scope to one notification type. Unset matches
+                         every type.
+                    format: enum
+                beforeTime:
+                    type: string
+                    description: |-
+                        Optional. Match notifications created strictly before this time. Unset
+                         applies no time bound.
+                    format: date-time
+            description: |-
+                UserNotificationBatchScope selects the notifications of a batch operation.
+                 Every set field narrows the scope; an empty scope matches all of the
+                 receiver's notifications.
         UserNotification_MemoCommentPayload:
             type: object
             properties:

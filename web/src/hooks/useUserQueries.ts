@@ -1,21 +1,25 @@
 import { create } from "@bufbuild/protobuf";
-import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";
+import { FieldMaskSchema, TimestampSchema, type Timestamp } from "@bufbuild/protobuf/wkt";
 import { type QueryClient, queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { userServiceClient } from "@/connect";
 import useCurrentUser from "@/hooks/useCurrentUser";
 import { buildUserSettingName, userNamePrefix } from "@/lib/resource-names";
 import { mergeTagCounts } from "@/lib/tag";
 import {
+  type BatchDeleteUserNotificationsResponse,
+  type BatchUpdateUserNotificationsResponse,
   type ListUserStatsRequest,
   ListUserStatsRequestSchema,
   User,
   UserNotification,
+  type UserNotificationBatchScope,
   UserNotification_Status,
-  UserSetting,
+  UserNotification_Type,
+  type UserSetting,
   UserSetting_GeneralSetting,
   UserSetting_Key,
   UserSettingSchema,
-  UserStats,
+  type UserStats,
 } from "@/types/proto/api/user_service_pb";
 
 const BATCH_GET_USERS_LIMIT = 100;
@@ -162,6 +166,66 @@ export function useDeleteNotification() {
     },
     onSuccess: (name) => {
       updateCachedNotifications(queryClient, (notifications) => notifications.filter((notification) => notification.name !== name));
+      void queryClient.invalidateQueries({ queryKey: userKeys.notifications() });
+    },
+  });
+}
+
+// NotificationBatchScopeInput is the UI-facing batch scope: all fields optional,
+// an empty object means "all notifications".
+export type NotificationBatchScopeInput = {
+  type?: UserNotification_Type;
+  beforeTime?: Date;
+};
+
+export function buildNotificationBatchScope(input: NotificationBatchScopeInput): UserNotificationBatchScope {
+  const scope: UserNotificationBatchScope = {};
+  if (input.type && input.type !== UserNotification_Type.TYPE_UNSPECIFIED) {
+    scope.type = input.type;
+  }
+  if (input.beforeTime) {
+    scope.beforeTime = create(TimestampSchema, {
+      seconds: BigInt(Math.floor(input.beforeTime.getTime() / 1000)),
+    }) as Timestamp;
+  }
+  return scope;
+}
+
+export function useBatchUpdateNotifications() {
+  const currentUser = useCurrentUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: NotificationBatchScopeInput): Promise<BatchUpdateUserNotificationsResponse> => {
+      if (!currentUser?.name) {
+        throw new Error("current user is required");
+      }
+      return userServiceClient.batchUpdateUserNotifications({
+        parent: currentUser.name,
+        scope: buildNotificationBatchScope(input),
+      });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: userKeys.notifications() });
+    },
+  });
+}
+
+export function useBatchDeleteNotifications() {
+  const currentUser = useCurrentUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: NotificationBatchScopeInput): Promise<BatchDeleteUserNotificationsResponse> => {
+      if (!currentUser?.name) {
+        throw new Error("current user is required");
+      }
+      return userServiceClient.batchDeleteUserNotifications({
+        parent: currentUser.name,
+        scope: buildNotificationBatchScope(input),
+      });
+    },
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: userKeys.notifications() });
     },
   });
