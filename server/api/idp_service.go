@@ -7,8 +7,10 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/usememos/memos/core/audit"
 	apipb "github.com/usememos/memos/proto/gen/api"
 	storepb "github.com/usememos/memos/proto/gen/store"
 	"github.com/usememos/memos/store"
@@ -37,7 +39,16 @@ func (s *APIService) CreateIdentityProvider(ctx context.Context, request *apipb.
 	storeIdp := convertIdentityProviderToStore(request.IdentityProvider)
 	storeIdp.Uid = idpUID
 
-	identityProvider, err := s.Store.CreateIdentityProvider(ctx, storeIdp)
+	changes, err := audit.MessageChanges(nil, storeIdp)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to compute identity provider changes: %v", err)
+	}
+	auditLog, err := newAuditLog(ctx, currentUser, storepb.AuditLog_IDENTITY_PROVIDER, storepb.AuditLog_CREATE, idpUID, changes)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to build audit entry: %v", err)
+	}
+
+	identityProvider, err := s.Store.CreateIdentityProviderWithAudit(ctx, storeIdp, auditLog)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create identity provider, error: %+v", err)
 	}
@@ -136,7 +147,29 @@ func (s *APIService) UpdateIdentityProvider(ctx context.Context, request *apipb.
 		}
 	}
 
-	identityProvider, err := s.Store.UpdateIdentityProvider(ctx, update)
+	// Snapshot the full post-change provider for the entry. Only masked fields
+	// differ, so the diff lists just the changed values; a preserved secret
+	// masks to the same marker on both sides and never appears as a change.
+	afterProvider := proto.CloneOf(existing)
+	if update.Name != nil {
+		afterProvider.Name = *update.Name
+	}
+	if update.IdentifierFilter != nil {
+		afterProvider.IdentifierFilter = *update.IdentifierFilter
+	}
+	if update.Config != nil {
+		afterProvider.Config = update.Config
+	}
+	changes, err := audit.MessageChanges(existing, afterProvider)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to compute identity provider changes: %v", err)
+	}
+	auditLog, err := newAuditLog(ctx, currentUser, storepb.AuditLog_IDENTITY_PROVIDER, storepb.AuditLog_UPDATE, uid, changes)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to build audit entry: %v", err)
+	}
+
+	identityProvider, err := s.Store.UpdateIdentityProviderWithAudit(ctx, update, auditLog)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to update identity provider, error: %+v", err)
 	}
@@ -172,7 +205,16 @@ func (s *APIService) DeleteIdentityProvider(ctx context.Context, request *apipb.
 		return nil, status.Errorf(codes.NotFound, "identity provider not found")
 	}
 
-	if err := s.Store.DeleteIdentityProviderSafely(ctx, &store.DeleteIdentityProvider{ID: identityProvider.Id}); err != nil {
+	changes, err := audit.MessageChanges(identityProvider, nil)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to compute identity provider changes: %v", err)
+	}
+	auditLog, err := newAuditLog(ctx, currentUser, storepb.AuditLog_IDENTITY_PROVIDER, storepb.AuditLog_DELETE, uid, changes)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to build audit entry: %v", err)
+	}
+
+	if err := s.Store.DeleteIdentityProviderSafelyWithAudit(ctx, &store.DeleteIdentityProvider{ID: identityProvider.Id}, auditLog); err != nil {
 		if errors.Is(err, store.ErrUnsafeAuthenticationConfiguration) {
 			return nil, status.Error(codes.FailedPrecondition, err.Error())
 		}

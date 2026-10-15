@@ -155,3 +155,20 @@ CREATE TABLE user_identity (
 );
 
 CREATE INDEX idx_user_identity_user_id ON user_identity(user_id);
+
+-- audit_log
+CREATE TABLE audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_ts BIGINT NOT NULL,
+  actor_id INTEGER NOT NULL,
+  actor_name TEXT NOT NULL DEFAULT '',
+  resource_type TEXT NOT NULL,
+  resource_id TEXT NOT NULL DEFAULT '',
+  action TEXT NOT NULL,
+  changes TEXT NOT NULL DEFAULT '[]',
+  client_ip TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX idx_audit_log_resource ON audit_log(resource_type, resource_id, id DESC);
+CREATE INDEX idx_audit_log_actor ON audit_log(actor_id, id DESC);
+CREATE INDEX idx_audit_log_created_ts ON audit_log(created_ts);

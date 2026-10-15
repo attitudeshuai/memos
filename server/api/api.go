@@ -65,6 +65,7 @@ type APIService struct {
 	apipb.UnimplementedAttachmentServiceServer
 	apipb.UnimplementedAIServiceServer
 	apipb.UnimplementedIdentityProviderServiceServer
+	apipb.UnimplementedAuditServiceServer
 
 	Secret                  string
 	Profile                 *profile.Profile
@@ -213,6 +214,9 @@ func (s *APIService) RegisterGateway(ctx context.Context, echoServer *echo.Echo)
 		return err
 	}
 	if err := apipb.RegisterIdentityProviderServiceHandlerServer(ctx, gwMux, s); err != nil {
+		return err
+	}
+	if err := apipb.RegisterAuditServiceHandlerServer(ctx, gwMux, s); err != nil {
 		return err
 	}
 	gwGroup := echoServer.Group("")

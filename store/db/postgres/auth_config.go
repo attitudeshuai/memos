@@ -74,6 +74,14 @@ func (d *DB) ApplyAuthenticationConfigMutation(ctx context.Context, mutation *st
 	if err != nil {
 		return errors.Wrap(err, "failed to apply authentication configuration mutation")
 	}
+	if mutation.Audit != nil {
+		if err := insertAuditLogTx(ctx, tx, mutation.Audit); err != nil {
+			return err
+		}
+		if err := pruneAuditLogsTx(ctx, tx, mutation.AuditMaxRecords, mutation.AuditBeforeSec); err != nil {
+			return err
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return errors.Wrap(err, "failed to commit authentication configuration transaction")
 	}

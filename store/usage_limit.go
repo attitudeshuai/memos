@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"regexp"
 	"slices"
+	"time"
 
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -153,13 +154,14 @@ func (s *Store) GetInstanceUsageLimitsSetting(ctx context.Context) (*storepb.Ins
 }
 
 // CreateUsageLimit adds a usage limit. create.Uid, Metric, Target, and Value
-// must be set; the create and update times are set here.
-func (s *Store) CreateUsageLimit(ctx context.Context, create *storepb.InstanceUsageLimitsSetting_UsageLimit) (*storepb.InstanceUsageLimitsSetting_UsageLimit, error) {
+// must be set; the create and update times are set here. audit is committed in
+// the same transaction as the new limit.
+func (s *Store) CreateUsageLimit(ctx context.Context, create *storepb.InstanceUsageLimitsSetting_UsageLimit, audit ...*AuditLog) (*storepb.InstanceUsageLimitsSetting_UsageLimit, error) {
 	if err := ValidateInstanceUsageLimitsSetting(&storepb.InstanceUsageLimitsSetting{Limits: []*storepb.InstanceUsageLimitsSetting_UsageLimit{create}}); err != nil {
 		return nil, err
 	}
 	var created *storepb.InstanceUsageLimitsSetting_UsageLimit
-	err := s.mutateUsageLimits(ctx, func(limits []*storepb.InstanceUsageLimitsSetting_UsageLimit) ([]*storepb.InstanceUsageLimitsSetting_UsageLimit, bool, error) {
+	err := s.mutateUsageLimits(ctx, firstAudit(audit), func(limits []*storepb.InstanceUsageLimitsSetting_UsageLimit) ([]*storepb.InstanceUsageLimitsSetting_UsageLimit, bool, error) {
 		for _, limit := range limits {
 			if limit.Uid == create.Uid {
 				return nil, false, errors.Wrapf(ErrUsageLimitAlreadyExists, "usage limit ID %q already exists", create.Uid)
@@ -180,10 +182,11 @@ func (s *Store) CreateUsageLimit(ctx context.Context, create *storepb.InstanceUs
 	return created, nil
 }
 
-// UpdateUsageLimit sets the value of the usage limit uid.
-func (s *Store) UpdateUsageLimit(ctx context.Context, uid string, value int64) (*storepb.InstanceUsageLimitsSetting_UsageLimit, error) {
+// UpdateUsageLimit sets the value of the usage limit uid. audit is committed
+// in the same transaction as the new value.
+func (s *Store) UpdateUsageLimit(ctx context.Context, uid string, value int64, audit ...*AuditLog) (*storepb.InstanceUsageLimitsSetting_UsageLimit, error) {
 	var updated *storepb.InstanceUsageLimitsSetting_UsageLimit
-	err := s.mutateUsageLimits(ctx, func(limits []*storepb.InstanceUsageLimitsSetting_UsageLimit) ([]*storepb.InstanceUsageLimitsSetting_UsageLimit, bool, error) {
+	err := s.mutateUsageLimits(ctx, firstAudit(audit), func(limits []*storepb.InstanceUsageLimitsSetting_UsageLimit) ([]*storepb.InstanceUsageLimitsSetting_UsageLimit, bool, error) {
 		index := slices.IndexFunc(limits, func(limit *storepb.InstanceUsageLimitsSetting_UsageLimit) bool { return limit.Uid == uid })
 		if index < 0 {
 			return nil, false, ErrUsageLimitNotFound
@@ -202,9 +205,10 @@ func (s *Store) UpdateUsageLimit(ctx context.Context, uid string, value int64) (
 	return updated, nil
 }
 
-// DeleteUsageLimit removes the usage limit uid.
-func (s *Store) DeleteUsageLimit(ctx context.Context, uid string) error {
-	return s.mutateUsageLimits(ctx, func(limits []*storepb.InstanceUsageLimitsSetting_UsageLimit) ([]*storepb.InstanceUsageLimitsSetting_UsageLimit, bool, error) {
+// DeleteUsageLimit removes the usage limit uid. audit is committed in the same
+// transaction as the deletion.
+func (s *Store) DeleteUsageLimit(ctx context.Context, uid string, audit ...*AuditLog) error {
+	return s.mutateUsageLimits(ctx, firstAudit(audit), func(limits []*storepb.InstanceUsageLimitsSetting_UsageLimit) ([]*storepb.InstanceUsageLimitsSetting_UsageLimit, bool, error) {
 		next := slices.DeleteFunc(limits, func(limit *storepb.InstanceUsageLimitsSetting_UsageLimit) bool { return limit.Uid == uid })
 		if len(next) == len(limits) {
 			return nil, false, ErrUsageLimitNotFound
@@ -220,27 +224,44 @@ func (s *Store) DeleteUsageLimitsForUser(ctx context.Context, userID int32) erro
 	if userID == 0 || s.IsInstanceSettingDeploymentConfigured(storepb.InstanceSettingKey_USAGE_LIMITS) {
 		return nil
 	}
-	return s.mutateUsageLimits(ctx, func(limits []*storepb.InstanceUsageLimitsSetting_UsageLimit) ([]*storepb.InstanceUsageLimitsSetting_UsageLimit, bool, error) {
+	return s.mutateUsageLimits(ctx, nil, func(limits []*storepb.InstanceUsageLimitsSetting_UsageLimit) ([]*storepb.InstanceUsageLimitsSetting_UsageLimit, bool, error) {
 		before := len(limits)
 		next := slices.DeleteFunc(limits, func(limit *storepb.InstanceUsageLimitsSetting_UsageLimit) bool { return limit.GetUserId() == userID })
 		return next, len(next) != before, nil
 	})
 }
 
+// firstAudit returns the optional audit entry of a mutating call.
+func firstAudit(audit []*AuditLog) *AuditLog {
+	if len(audit) > 0 {
+		return audit[0]
+	}
+	return nil
+}
+
 // usageLimitsMutation receives a private copy of the stored limits and returns
-// the new list and whether it changed. Returning an error aborts the write.
+// the new list and whether it changed. Returning an error aborts the commit.
 type usageLimitsMutation func(limits []*storepb.InstanceUsageLimitsSetting_UsageLimit) ([]*storepb.InstanceUsageLimitsSetting_UsageLimit, bool, error)
 
 // mutateUsageLimits applies mutate as a read, modify, and conditional write of
-// the USAGE_LIMITS row. The write succeeds only if the row is unchanged since
-// it was read; otherwise the whole step runs again, so concurrent writers on
-// any replica never overwrite each other. Uniqueness and the cap are checked
-// on the list that is written, which makes them safe across replicas.
-func (s *Store) mutateUsageLimits(ctx context.Context, mutate usageLimitsMutation) error {
+// the USAGE_LIMITS row. The write, its audit entry, and retention pruning
+// commit together. The write succeeds only if the row is unchanged since it
+// was read; otherwise the whole step runs again, so concurrent writers on any
+// replica never overwrite each other. Uniqueness and the cap are checked on
+// the list that is written, which makes them safe across replicas.
+func (s *Store) mutateUsageLimits(ctx context.Context, audit *AuditLog, mutate usageLimitsMutation) error {
 	if s.IsInstanceSettingDeploymentConfigured(storepb.InstanceSettingKey_USAGE_LIMITS) {
 		return ErrUsageLimitsDeploymentConfigured
 	}
 	name := storepb.InstanceSettingKey_USAGE_LIMITS.String()
+	var maxRecords int64
+	var beforeSec int64
+	if audit != nil {
+		if audit.CreatedTs == 0 {
+			audit.CreatedTs = time.Now().Unix()
+		}
+		maxRecords, beforeSec = s.currentAuditBounds(ctx).Bounds(time.Now())
+	}
 	for range usageLimitWriteAttempts {
 		list, err := s.driver.ListInstanceSettings(ctx, &FindInstanceSetting{Name: name})
 		if err != nil {
@@ -282,7 +303,9 @@ func (s *Store) mutateUsageLimits(ctx context.Context, mutate usageLimitsMutatio
 		}
 
 		var written bool
-		if exists {
+		if audit != nil {
+			written, err = s.driver.WriteUsageLimitSettingAudited(ctx, name, exists, oldValue, string(valueBytes), audit, maxRecords, beforeSec)
+		} else if exists {
 			written, err = s.driver.UpdateInstanceSettingIfUnchanged(ctx, name, oldValue, string(valueBytes))
 		} else {
 			written, err = s.driver.CreateInstanceSettingIfNotExists(ctx, &InstanceSetting{Name: name, Value: string(valueBytes)})

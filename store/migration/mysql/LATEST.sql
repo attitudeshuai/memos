@@ -154,3 +154,19 @@ CREATE TABLE `user_identity` (
 );
 
 CREATE INDEX `idx_user_identity_user_id` ON `user_identity`(`user_id`);
+
+-- audit_log
+CREATE TABLE `audit_log` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `created_ts` BIGINT NOT NULL,
+  `actor_id` INT NOT NULL,
+  `actor_name` VARCHAR(256) NOT NULL DEFAULT '',
+  `resource_type` VARCHAR(64) NOT NULL,
+  `resource_id` VARCHAR(256) NOT NULL DEFAULT '',
+  `action` VARCHAR(32) NOT NULL,
+  `changes` LONGTEXT NOT NULL,
+  `client_ip` VARCHAR(64) NOT NULL DEFAULT '',
+  INDEX `idx_audit_log_resource` (`resource_type`, `resource_id`, `id` DESC),
+  INDEX `idx_audit_log_actor` (`actor_id`, `id` DESC),
+  INDEX `idx_audit_log_created_ts` (`created_ts`)
+);

@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package memos.api;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "gen/api";
+
+// AuditService exposes the administrative change ledger. Every RPC requires
+// the admin role. The ledger is append-only; it records who changed which
+// administrative object, when, and the key field values before and after the
+// change.
+service AuditService {
+  // ListAuditLogs lists audit log entries, newest first. Entries can be
+  // filtered by the changed object and by the actor. Admin only.
+  rpc ListAuditLogs(ListAuditLogsRequest) returns (ListAuditLogsResponse) {
+    option (google.api.http) = {get: "/api/audit-logs"};
+  }
+
+  // GetAuditLogRetention gets the declared retention policy of the ledger. Admin only.
+  rpc GetAuditLogRetention(GetAuditLogRetentionRequest) returns (AuditLogRetention) {
+    option (google.api.http) = {get: "/api/audit-log-retention"};
+  }
+
+  // UpdateAuditLogRetention declares how many entries and how many days of
+  // history to keep. Entries past either bound are pruned oldest first. Admin only.
+  rpc UpdateAuditLogRetention(UpdateAuditLogRetentionRequest) returns (AuditLogRetention) {
+    option (google.api.http) = {
+      patch: "/api/audit-log-retention"
+      body: "retention"
+    };
+    option (google.api.method_signature) = "retention";
+  }
+}
+
+// AuditResourceType is the kind of object a ledger entry describes.
+enum AuditResourceType {
+  AUDIT_RESOURCE_TYPE_UNSPECIFIED = 0;
+  // An instance setting, such as ACCESS or STORAGE.
+  AUDIT_RESOURCE_INSTANCE_SETTING = 1;
+  // An identity provider.
+  AUDIT_RESOURCE_IDENTITY_PROVIDER = 2;
+  // A usage limit.
+  AUDIT_RESOURCE_USAGE_LIMIT = 3;
+  // A user account.
+  AUDIT_RESOURCE_USER = 4;
+}
+
+// AuditAction is the kind of change a ledger entry describes.
+enum AuditAction {
+  AUDIT_ACTION_UNSPECIFIED = 0;
+  AUDIT_ACTION_CREATE = 1;
+  AUDIT_ACTION_UPDATE = 2;
+  AUDIT_ACTION_DELETE = 3;
+}
+
+// AuditFieldChange is one key field's value before and after a change. Empty
+// values mean the field did not exist on that side. Sensitive fields never
+// expose their value: a non-empty secret is rendered as "***" on both sides.
+message AuditFieldChange {
+  // The dotted field path, such as "email.smtp_host" or "role".
+  string field = 1;
+  // The value before the change.
+  string before = 2;
+  // The value after the change.
+  string after = 3;
+}
+
+// AuditLog is one administrative change ledger entry.
+message AuditLog {
+  // The resource name of the ledger entry. Format: audit-logs/{id}
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+  // The resource name of the administrator who made the change, snapshotted at write time.
+  // Format: users/{username}
+  string actor = 2;
+  // When the change happened.
+  google.protobuf.Timestamp create_time = 3;
+  // The kind of object that changed.
+  AuditResourceType resource_type = 4;
+  // The resource name of the changed object, such as instance/settings/ACCESS,
+  // identity-providers/google, usageLimits/limit-abcd, or users/alice.
+  string resource = 5;
+  // The kind of change.
+  AuditAction action = 6;
+  // The key field values before and after the change, with secrets masked.
+  repeated AuditFieldChange changes = 7;
+  // The address the request came from, when one could be resolved.
+  string client_ip = 8;
+}
+
+// Request message for AuditService.ListAuditLogs.
+message ListAuditLogsRequest {
+  // Optional. Only return entries for this kind of object.
+  AuditResourceType resource_type = 1;
+  // Optional. Only return entries for this exact object resource name.
+  string resource = 2;
+  // Optional. Only return entries made by this actor. Format: users/{username}
+  string actor = 3;
+  // Optional. Only return entries for this kind of change.
+  AuditAction action = 4;
+  // Optional. The maximum number of entries to return. Defaults to 50; values above 1000 are coerced to 1000.
+  int32 page_size = 5;
+  // Optional. The pagination token returned by a previous call.
+  string page_token = 6;
+}
+
+// Response message for AuditService.ListAuditLogs.
+message ListAuditLogsResponse {
+  // The ledger entries, newest first.
+  repeated AuditLog audit_logs = 1;
+  // The pagination token for the next page, empty when there are no more entries.
+  string next_page_token = 2;
+}
+
+// AuditLogRetention declares how much ledger history is kept. A zero value
+// disables that bound. When more entries than max_records exist, the oldest
+// ones are pruned; entries older than retain_days are pruned as well.
+message AuditLogRetention {
+  // Maximum number of entries to keep. 0 keeps an unlimited number.
+  int64 max_records = 1;
+  // Number of days of history to keep. 0 keeps entries of any age.
+  int32 retain_days = 2;
+}
+
+// Request message for AuditService.GetAuditLogRetention.
+message GetAuditLogRetentionRequest {}
+
+// Request message for AuditService.UpdateAuditLogRetention.
+message UpdateAuditLogRetentionRequest {
+  // Required. The retention policy to declare.
+  AuditLogRetention retention = 1 [(google.api.field_behavior) = REQUIRED];
+}

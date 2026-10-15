@@ -32,6 +32,8 @@ type Store struct {
 	userCache            *cache.Cache // cache for users
 	userSettingCache     *cache.Cache // cache for user settings
 
+	auditRetention auditRetentionCache // cache for audit log retention policy
+
 	// storageDriverCache reuses object-storage clients across requests, keyed
 	// by the resolved configuration. Reset whenever the STORAGE setting changes.
 	storageDriverMu         sync.Mutex

@@ -812,3 +812,29 @@ func (s *ConnectServiceHandler) DeleteIdentityProvider(ctx context.Context, req 
 	}
 	return connect.NewResponse(resp), nil
 }
+
+// AuditService
+
+func (s *ConnectServiceHandler) ListAuditLogs(ctx context.Context, req *connect.Request[apipb.ListAuditLogsRequest]) (*connect.Response[apipb.ListAuditLogsResponse], error) {
+	resp, err := s.APIService.ListAuditLogs(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (s *ConnectServiceHandler) GetAuditLogRetention(ctx context.Context, req *connect.Request[apipb.GetAuditLogRetentionRequest]) (*connect.Response[apipb.AuditLogRetention], error) {
+	resp, err := s.APIService.GetAuditLogRetention(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (s *ConnectServiceHandler) UpdateAuditLogRetention(ctx context.Context, req *connect.Request[apipb.UpdateAuditLogRetentionRequest]) (*connect.Response[apipb.AuditLogRetention], error) {
+	resp, err := s.APIService.UpdateAuditLogRetention(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}

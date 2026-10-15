@@ -26,6 +26,13 @@ type AuthenticationConfigMutation struct {
 	UpsertGeneralSetting     *InstanceSetting
 	DeleteIdentityProviderID *int32
 	Validate                 func(*AuthenticationConfigState) error
+
+	// Audit, when set, is inserted in the same transaction as the mutation.
+	// AuditMaxRecords and AuditBeforeSec are the retention pruning bounds; a
+	// zero value disables that pruning rule.
+	Audit           *AuditLog
+	AuditMaxRecords int64
+	AuditBeforeSec   int64
 }
 
 // UpsertInstanceGeneralSettingSafely validates and stores GENERAL as one serialized operation.

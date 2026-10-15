@@ -27,34 +27,45 @@ type DeleteInstanceSetting struct {
 	Name string
 }
 
-func (s *Store) UpsertInstanceSetting(ctx context.Context, upsert *storepb.InstanceSetting) (*storepb.InstanceSetting, error) {
-	instanceSettingRaw := &InstanceSetting{
-		Name: upsert.Key.String(),
-	}
+// marshalInstanceSettingValue encodes the oneof value of an instance setting
+// to its stored JSON form, applying storage normalization in place.
+func marshalInstanceSettingValue(upsert *storepb.InstanceSetting) ([]byte, error) {
 	var valueBytes []byte
 	var err error
-	if upsert.Key == storepb.InstanceSettingKey_BASIC {
+	switch upsert.Key {
+	case storepb.InstanceSettingKey_BASIC:
 		valueBytes, err = protojson.Marshal(upsert.GetBasicSetting())
-	} else if upsert.Key == storepb.InstanceSettingKey_GENERAL {
+	case storepb.InstanceSettingKey_GENERAL:
 		valueBytes, err = protojson.Marshal(upsert.GetGeneralSetting())
-	} else if upsert.Key == storepb.InstanceSettingKey_STORAGE {
+	case storepb.InstanceSettingKey_STORAGE:
 		NormalizeInstanceStorageSetting(upsert.GetStorageSetting())
 		valueBytes, err = protojson.Marshal(upsert.GetStorageSetting())
-	} else if upsert.Key == storepb.InstanceSettingKey_MEMO_RELATED {
+	case storepb.InstanceSettingKey_MEMO_RELATED:
 		valueBytes, err = protojson.Marshal(upsert.GetMemoRelatedSetting())
-	} else if upsert.Key == storepb.InstanceSettingKey_TAGS {
+	case storepb.InstanceSettingKey_TAGS:
 		valueBytes, err = protojson.Marshal(upsert.GetTagsSetting())
-	} else if upsert.Key == storepb.InstanceSettingKey_NOTIFICATION {
+	case storepb.InstanceSettingKey_NOTIFICATION:
 		valueBytes, err = protojson.Marshal(upsert.GetNotificationSetting())
-	} else if upsert.Key == storepb.InstanceSettingKey_AI {
+	case storepb.InstanceSettingKey_AI:
 		valueBytes, err = protojson.Marshal(upsert.GetAiSetting())
-	} else if upsert.Key == storepb.InstanceSettingKey_ACCESS {
+	case storepb.InstanceSettingKey_ACCESS:
 		valueBytes, err = protojson.Marshal(upsert.GetAccessSetting())
-	} else {
+	default:
 		return nil, errors.Errorf("unsupported instance setting key: %v", upsert.Key)
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal instance setting value")
+	}
+	return valueBytes, nil
+}
+
+func (s *Store) UpsertInstanceSetting(ctx context.Context, upsert *storepb.InstanceSetting) (*storepb.InstanceSetting, error) {
+	instanceSettingRaw := &InstanceSetting{
+		Name: upsert.Key.String(),
+	}
+	valueBytes, err := marshalInstanceSettingValue(upsert)
+	if err != nil {
+		return nil, err
 	}
 	valueString := string(valueBytes)
 	instanceSettingRaw.Value = valueString

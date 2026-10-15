@@ -40,6 +40,19 @@ func (d *DB) UpdateUser(ctx context.Context, update *store.UpdateUser) (*store.U
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	user, err := updateUserTx(ctx, tx, update)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+// updateUserTx applies the user update inside tx, including the last-admin and
+// last-space-admin guards. It does not commit.
+func updateUserTx(ctx context.Context, tx *sql.Tx, update *store.UpdateUser) (*store.User, error) {
 	if update.RemovesInstanceAdmin() {
 		if err := ensureInstanceAdminRetained(ctx, tx, update.ID); err != nil {
 			return nil, err
@@ -94,9 +107,6 @@ func (d *DB) UpdateUser(ctx context.Context, update *store.UpdateUser) (*store.U
 		return nil, err
 	}
 	user.Email = email.String
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
 	return user, nil
 }
 

@@ -611,7 +611,7 @@ func TestImportMemosFailureKeepsPreexistingAttachment(t *testing.T) {
 	defer ts.Cleanup()
 	t.Cleanup(ts.Service.CloseUploads)
 	ctx := context.Background()
-	_, err := ts.Store.UpdateUsageLimit(ctx, "default-upload", 1<<20)
+	_, err := ts.Store.UpdateUsageLimit(ctx, "default-upload", 1<<20, nil)
 	require.NoError(t, err)
 	user, err := ts.CreateRegularUser(ctx, "keeper")
 	require.NoError(t, err)

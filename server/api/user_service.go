@@ -16,9 +16,11 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/usememos/memos/core/audit"
 	"github.com/usememos/memos/internal/clientip"
 	"github.com/usememos/memos/internal/ratelimit"
 	apipb "github.com/usememos/memos/proto/gen/api"
+	storepb "github.com/usememos/memos/proto/gen/store"
 	"github.com/usememos/memos/store"
 )
 
@@ -383,6 +385,8 @@ func (s *APIService) UpdateUser(ctx context.Context, request *apipb.UpdateUserRe
 		return nil, status.Errorf(codes.Internal, "failed to get instance general setting: %v", err)
 	}
 	passwordChanged := false
+	roleChanged := false
+	stateChanged := false
 	for _, field := range request.UpdateMask.Paths {
 		switch field {
 		case "username":
@@ -436,6 +440,7 @@ func (s *APIService) UpdateUser(ctx context.Context, request *apipb.UpdateUserRe
 			}
 			role := convertUserRoleToStore(request.User.Role)
 			update.Role = &role
+			roleChanged = true
 		case "password":
 			if err := validatePassword(request.User.Password); err != nil {
 				return nil, status.Errorf(codes.InvalidArgument, "%v", err)
@@ -453,12 +458,32 @@ func (s *APIService) UpdateUser(ctx context.Context, request *apipb.UpdateUserRe
 			}
 			rowStatus := convertStateToStore(request.User.State)
 			update.RowStatus = &rowStatus
+			stateChanged = true
 		default:
 			return nil, status.Errorf(codes.InvalidArgument, "invalid update path: %s", field)
 		}
 	}
 
-	updatedUser, err := s.Store.UpdateUser(ctx, update)
+	var updatedUser *store.User
+	if roleChanged || stateChanged {
+		// Role and account state changes are administrative and land in the
+		// audit ledger, committed in the same transaction as the user update.
+		changes := []audit.FieldChange{}
+		if roleChanged {
+			changes = append(changes, audit.Change("role", user.Role.String(), update.Role.String()))
+		}
+		if stateChanged {
+			changes = append(changes, audit.Change("state", string(user.RowStatus), string(*update.RowStatus)))
+		}
+		var auditLog *store.AuditLog
+		auditLog, err = newAuditLog(ctx, currentUser, storepb.AuditLog_USER, storepb.AuditLog_UPDATE, user.Username, changes)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to build audit entry: %v", err)
+		}
+		updatedUser, err = s.Store.UpdateUserWithAudit(ctx, update, auditLog)
+	} else {
+		updatedUser, err = s.Store.UpdateUser(ctx, update)
+	}
 	if err != nil {
 		if stderrors.Is(err, store.ErrLastSpaceAdmin) {
 			return nil, status.Error(codes.FailedPrecondition, "an active space must retain an active administrator")

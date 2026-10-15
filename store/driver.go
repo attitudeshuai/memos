@@ -90,6 +90,30 @@ type Driver interface {
 	ApplyAuthenticationConfigMutation(ctx context.Context, mutation *AuthenticationConfigMutation) error
 	IsRetryableAuthenticationMutationError(err error) bool
 
+	// AuditLog model related methods.
+	ListAuditLogs(ctx context.Context, find *FindAuditLog) ([]*AuditLog, error)
+	// CreateAuditLog inserts the entry and prunes to the retention bounds in
+	// one transaction. maxRecords 0 disables count pruning; beforeSec 0
+	// disables age pruning.
+	CreateAuditLog(ctx context.Context, create *AuditLog, maxRecords int64, beforeSec int64) error
+	// PruneAuditLogs removes entries older than beforeSec and, beyond
+	// maxRecords, the oldest entries. Zero bounds disable that pruning rule.
+	PruneAuditLogs(ctx context.Context, maxRecords int64, beforeSec int64) error
+
+	// Audited mutations commit the business write, its audit entry, and
+	// retention pruning as one transaction, so the business state and the
+	// ledger always agree. The two integers are retention bounds as in
+	// CreateAuditLog.
+	UpsertInstanceSettingAudited(ctx context.Context, upsert *InstanceSetting, audit *AuditLog, maxRecords int64, beforeSec int64) error
+	CreateIdentityProviderAudited(ctx context.Context, create *IdentityProvider, audit *AuditLog, maxRecords int64, beforeSec int64) (*IdentityProvider, error)
+	UpdateIdentityProviderAudited(ctx context.Context, update *UpdateIdentityProvider, audit *AuditLog, maxRecords int64, beforeSec int64) (*IdentityProvider, error)
+	// WriteUsageLimitSettingAudited conditionally writes the USAGE_LIMITS
+	// setting row (insert when exists is false, compare-and-swap when true)
+	// and reports whether this attempt won the write, like
+	// CreateInstanceSettingIfNotExists and UpdateInstanceSettingIfUnchanged.
+	WriteUsageLimitSettingAudited(ctx context.Context, name string, exists bool, oldValue, newValue string, audit *AuditLog, maxRecords int64, beforeSec int64) (bool, error)
+	UpdateUserAudited(ctx context.Context, update *UpdateUser, audit *AuditLog, maxRecords int64, beforeSec int64) (*User, error)
+
 	// Inbox model related methods.
 	CreateInbox(ctx context.Context, create *Inbox) (*Inbox, error)
 	ListInboxes(ctx context.Context, find *FindInbox) ([]*Inbox, error)

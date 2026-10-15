@@ -159,7 +159,7 @@ func TestUploadAttachmentValidation(t *testing.T) {
 	}
 	_, err = svc.UploadAttachment(ctx, &apipb.UploadAttachmentRequest{Upload: uploadSpec("file", 3), WriteOffset: 1, Data: []byte("abc")})
 	require.Equal(t, codes.OutOfRange, status.Code(err))
-	_, err = svc.Store.UpdateUsageLimit(ctx, "default-upload", 1<<30)
+	_, err = svc.Store.UpdateUsageLimit(ctx, "default-upload", 1<<30, nil)
 	require.NoError(t, err)
 	_, err = svc.UploadAttachment(ctx, &apipb.UploadAttachmentRequest{Upload: uploadSpec("file", 1<<60)})
 	require.Equal(t, codes.ResourceExhausted, status.Code(err))
@@ -248,7 +248,7 @@ func TestUploadAttachmentRechecksMemoAndSize(t *testing.T) {
 
 	// A per-file limit set after the upload started applies at finish.
 	id := startTestUpload(ctx, t, svc, 2*MebiByte)
-	_, err = svc.Store.UpdateUsageLimit(ctx, "default-upload", MebiByte)
+	_, err = svc.Store.UpdateUsageLimit(ctx, "default-upload", MebiByte, nil)
 	require.NoError(t, err)
 	_, err = svc.UploadAttachment(ctx, &apipb.UploadAttachmentRequest{Upload: uploadID(id), Data: make([]byte, 2*MebiByte), FinishWrite: true})
 	require.Equal(t, codes.ResourceExhausted, status.Code(err))
@@ -298,7 +298,7 @@ func TestUploadAttachmentExpiryAndLimits(t *testing.T) {
 
 func TestUploadAttachmentAboveLegacyRequestLimit(t *testing.T) {
 	svc, ctx := newUploadTestService(t)
-	_, err := svc.Store.UpdateUsageLimit(ctx, "default-upload", 0)
+	_, err := svc.Store.UpdateUsageLimit(ctx, "default-upload", 0, nil)
 	require.NoError(t, err)
 	const size = 300 * MebiByte
 	id := startTestUpload(ctx, t, svc, size)

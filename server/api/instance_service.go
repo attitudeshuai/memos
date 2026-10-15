@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/usememos/memos/core/audit"
 	"github.com/usememos/memos/core/notification"
 	apipb "github.com/usememos/memos/proto/gen/api"
 	storepb "github.com/usememos/memos/proto/gen/store"
@@ -259,11 +260,24 @@ func (s *APIService) UpdateInstanceSetting(ctx context.Context, request *apipb.U
 		// No credential preservation needed for other setting types.
 	}
 
+	beforeSetting, err := s.loadInstanceSettingByKey(ctx, settingKey)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to load previous instance setting: %v", err)
+	}
+	changes, err := audit.MessageChanges(audit.InstanceSettingPayload(beforeSetting), audit.InstanceSettingPayload(updateSetting))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to compute instance setting changes: %v", err)
+	}
+	auditLog, err := newAuditLog(ctx, user, storepb.AuditLog_INSTANCE_SETTING, storepb.AuditLog_UPDATE, settingKeyString, changes)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to build audit entry: %v", err)
+	}
+
 	var instanceSetting *storepb.InstanceSetting
 	if updateSetting.Key == storepb.InstanceSettingKey_GENERAL {
-		instanceSetting, err = s.Store.UpsertInstanceGeneralSettingSafely(ctx, updateSetting)
+		instanceSetting, err = s.Store.UpsertInstanceGeneralSettingSafelyWithAudit(ctx, updateSetting, auditLog)
 	} else {
-		instanceSetting, err = s.Store.UpsertInstanceSetting(ctx, updateSetting)
+		instanceSetting, err = s.Store.UpsertInstanceSettingWithAudit(ctx, updateSetting, auditLog)
 	}
 	if err != nil {
 		if errors.Is(err, store.ErrUnsafeAuthenticationConfiguration) {
@@ -273,6 +287,67 @@ func (s *APIService) UpdateInstanceSetting(ctx context.Context, request *apipb.U
 	}
 
 	return convertInstanceSettingFromStore(instanceSetting), nil
+}
+
+// loadInstanceSettingByKey returns the current effective instance setting of
+// key in store proto form, applying the same defaults as the read API. It is
+// used to snapshot the pre-change value for the audit entry.
+func (s *APIService) loadInstanceSettingByKey(ctx context.Context, key storepb.InstanceSettingKey) (*storepb.InstanceSetting, error) {
+	switch key {
+	case storepb.InstanceSettingKey_BASIC:
+		setting, err := s.Store.GetInstanceBasicSetting(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &storepb.InstanceSetting{Key: key, Value: &storepb.InstanceSetting_BasicSetting{BasicSetting: setting}}, nil
+	case storepb.InstanceSettingKey_GENERAL:
+		setting, err := s.Store.GetInstanceGeneralSetting(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &storepb.InstanceSetting{Key: key, Value: &storepb.InstanceSetting_GeneralSetting{GeneralSetting: setting}}, nil
+	case storepb.InstanceSettingKey_MEMO_RELATED:
+		setting, err := s.Store.GetInstanceMemoRelatedSetting(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &storepb.InstanceSetting{Key: key, Value: &storepb.InstanceSetting_MemoRelatedSetting{MemoRelatedSetting: setting}}, nil
+	case storepb.InstanceSettingKey_STORAGE:
+		setting, err := s.Store.GetInstanceStorageSetting(ctx)
+		if err != nil {
+			// Mirror the update path: a corrupt stored setting is treated as
+			// unset so the change can be audited as one.
+			slog.Warn("failed to load existing storage setting for audit; treating it as unset", "error", err)
+			return &storepb.InstanceSetting{Key: key, Value: &storepb.InstanceSetting_StorageSetting{StorageSetting: nil}}, nil
+		}
+		return &storepb.InstanceSetting{Key: key, Value: &storepb.InstanceSetting_StorageSetting{StorageSetting: setting}}, nil
+	case storepb.InstanceSettingKey_TAGS:
+		setting, err := s.Store.GetInstanceTagsSetting(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &storepb.InstanceSetting{Key: key, Value: &storepb.InstanceSetting_TagsSetting{TagsSetting: setting}}, nil
+	case storepb.InstanceSettingKey_NOTIFICATION:
+		setting, err := s.Store.GetInstanceNotificationSetting(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &storepb.InstanceSetting{Key: key, Value: &storepb.InstanceSetting_NotificationSetting{NotificationSetting: setting}}, nil
+	case storepb.InstanceSettingKey_AI:
+		setting, err := s.Store.GetInstanceAISetting(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &storepb.InstanceSetting{Key: key, Value: &storepb.InstanceSetting_AiSetting{AiSetting: setting}}, nil
+	case storepb.InstanceSettingKey_ACCESS:
+		setting, err := s.Store.GetInstanceAccessSetting(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &storepb.InstanceSetting{Key: key, Value: &storepb.InstanceSetting_AccessSetting{AccessSetting: setting}}, nil
+	default:
+		return nil, errors.Errorf("unsupported instance setting key: %v", key)
+	}
 }
 
 // challengeProfile describes the configured challenge so the web app can

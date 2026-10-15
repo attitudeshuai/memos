@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/google/cel-go/cel"
@@ -13,6 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/usememos/memos/core/audit"
 	"github.com/usememos/memos/core/usagelimit"
 	apipb "github.com/usememos/memos/proto/gen/api"
 	storepb "github.com/usememos/memos/proto/gen/store"
@@ -111,7 +113,8 @@ func (s *APIService) GetUsageLimit(ctx context.Context, request *apipb.GetUsageL
 
 // CreateUsageLimit creates a usage limit. Admin only.
 func (s *APIService) CreateUsageLimit(ctx context.Context, request *apipb.CreateUsageLimitRequest) (*apipb.UsageLimit, error) {
-	if _, err := s.requireUsageLimitAdmin(ctx); err != nil {
+	admin, err := s.requireUsageLimitAdmin(ctx)
+	if err != nil {
 		return nil, err
 	}
 	if request.UsageLimit == nil {
@@ -146,16 +149,34 @@ func (s *APIService) CreateUsageLimit(ctx context.Context, request *apipb.Create
 		create.Target = &storepb.InstanceUsageLimitsSetting_UsageLimit_UserId{UserId: user.ID}
 		username = user.Username
 	}
-	created, err := s.Store.CreateUsageLimit(ctx, create)
+	changes := []audit.FieldChange{
+		audit.Change("metric", "", metric.String()),
+		audit.Change("target", "", usageLimitAuditTarget(username)),
+		audit.Change("value", "", strconv.FormatInt(request.UsageLimit.Value, 10)),
+	}
+	auditLog, err := newAuditLog(ctx, admin, storepb.AuditLog_USAGE_LIMIT, storepb.AuditLog_CREATE, uid, changes)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to build audit entry: %v", err)
+	}
+	created, err := s.Store.CreateUsageLimit(ctx, create, auditLog)
 	if err != nil {
 		return nil, usageLimitStoreError(err)
 	}
 	return convertUsageLimitFromStore(created, username), nil
 }
 
+// usageLimitAuditTarget renders a usage limit target for a ledger entry.
+func usageLimitAuditTarget(username string) string {
+	if username == "" {
+		return "all_users"
+	}
+	return UserNamePrefix + username
+}
+
 // UpdateUsageLimit updates the value of a usage limit. Admin only.
 func (s *APIService) UpdateUsageLimit(ctx context.Context, request *apipb.UpdateUsageLimitRequest) (*apipb.UsageLimit, error) {
-	if _, err := s.requireUsageLimitAdmin(ctx); err != nil {
+	admin, err := s.requireUsageLimitAdmin(ctx)
+	if err != nil {
 		return nil, err
 	}
 	if request.UsageLimit == nil {
@@ -189,7 +210,16 @@ func (s *APIService) UpdateUsageLimit(ctx context.Context, request *apipb.Update
 	if request.UsageLimit.User != "" && request.UsageLimit.User != usageLimitUserName(usernames[current.GetUserId()]) {
 		return nil, status.Errorf(codes.InvalidArgument, "user is immutable")
 	}
-	updated, err := s.Store.UpdateUsageLimit(ctx, uid, request.UsageLimit.Value)
+	// metric and target are immutable; the entry records the value before and
+	// after, and the object name identifies the affected limit.
+	changes := []audit.FieldChange{
+		audit.Change("value", strconv.FormatInt(current.Value, 10), strconv.FormatInt(request.UsageLimit.Value, 10)),
+	}
+	auditLog, err := newAuditLog(ctx, admin, storepb.AuditLog_USAGE_LIMIT, storepb.AuditLog_UPDATE, uid, changes)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to build audit entry: %v", err)
+	}
+	updated, err := s.Store.UpdateUsageLimit(ctx, uid, request.UsageLimit.Value, auditLog)
 	if err != nil {
 		return nil, usageLimitStoreError(err)
 	}
@@ -198,14 +228,33 @@ func (s *APIService) UpdateUsageLimit(ctx context.Context, request *apipb.Update
 
 // DeleteUsageLimit deletes a usage limit. Admin only.
 func (s *APIService) DeleteUsageLimit(ctx context.Context, request *apipb.DeleteUsageLimitRequest) (*emptypb.Empty, error) {
-	if _, err := s.requireUsageLimitAdmin(ctx); err != nil {
+	admin, err := s.requireUsageLimitAdmin(ctx)
+	if err != nil {
 		return nil, err
 	}
 	uid, err := ExtractUsageLimitIDFromName(request.Name)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid usage limit name: %v", err)
 	}
-	if err := s.Store.DeleteUsageLimit(ctx, uid); err != nil {
+	limits, usernames, err := s.listVisibleUsageLimits(ctx)
+	if err != nil {
+		return nil, err
+	}
+	index := slices.IndexFunc(limits, func(limit *storepb.InstanceUsageLimitsSetting_UsageLimit) bool { return limit.Uid == uid })
+	if index < 0 {
+		return nil, status.Errorf(codes.NotFound, "usage limit not found")
+	}
+	before := limits[index]
+	changes := []audit.FieldChange{
+		audit.Change("metric", before.Metric.String(), ""),
+		audit.Change("target", usageLimitAuditTarget(usernames[before.GetUserId()]), ""),
+		audit.Change("value", strconv.FormatInt(before.Value, 10), ""),
+	}
+	auditLog, err := newAuditLog(ctx, admin, storepb.AuditLog_USAGE_LIMIT, storepb.AuditLog_DELETE, uid, changes)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to build audit entry: %v", err)
+	}
+	if err := s.Store.DeleteUsageLimit(ctx, uid, auditLog); err != nil {
 		return nil, usageLimitStoreError(err)
 	}
 	return &emptypb.Empty{}, nil

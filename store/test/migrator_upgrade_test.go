@@ -53,6 +53,7 @@ func TestUpgradeFromCalendarRelease(t *testing.T) {
 	for _, tc := range []struct{ previous, candidate string }{
 		{previous: "26.09.0", candidate: "26.10.0"},
 		{previous: "26.10.0", candidate: "26.10.1"},
+		{previous: "26.10.1", candidate: "26.10.2"},
 		{previous: "26.10.0-rc.1", candidate: "26.10.0"},
 		{previous: "26.12.9", candidate: "27.01.0"},
 	} {

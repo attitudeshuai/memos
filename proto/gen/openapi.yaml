@@ -259,6 +259,117 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/audit-log-retention:
+        get:
+            tags:
+                - AuditService
+            description: GetAuditLogRetention gets the declared retention policy of the ledger. Admin only.
+            operationId: AuditService_GetAuditLogRetention
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AuditLogRetention'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        patch:
+            tags:
+                - AuditService
+            description: |-
+                UpdateAuditLogRetention declares how many entries and how many days of
+                 history to keep. Entries past either bound are pruned oldest first. Admin only.
+            operationId: AuditService_UpdateAuditLogRetention
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/AuditLogRetention'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AuditLogRetention'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/audit-logs:
+        get:
+            tags:
+                - AuditService
+            description: |-
+                ListAuditLogs lists audit log entries, newest first. Entries can be
+                 filtered by the changed object and by the actor. Admin only.
+            operationId: AuditService_ListAuditLogs
+            parameters:
+                - name: resourceType
+                  in: query
+                  description: Optional. Only return entries for this kind of object.
+                  schema:
+                    enum:
+                        - AUDIT_RESOURCE_TYPE_UNSPECIFIED
+                        - AUDIT_RESOURCE_INSTANCE_SETTING
+                        - AUDIT_RESOURCE_IDENTITY_PROVIDER
+                        - AUDIT_RESOURCE_USAGE_LIMIT
+                        - AUDIT_RESOURCE_USER
+                    type: string
+                    format: enum
+                - name: resource
+                  in: query
+                  description: Optional. Only return entries for this exact object resource name.
+                  schema:
+                    type: string
+                - name: actor
+                  in: query
+                  description: 'Optional. Only return entries made by this actor. Format: users/{username}'
+                  schema:
+                    type: string
+                - name: action
+                  in: query
+                  description: Optional. Only return entries for this kind of change.
+                  schema:
+                    enum:
+                        - AUDIT_ACTION_UNSPECIFIED
+                        - AUDIT_ACTION_CREATE
+                        - AUDIT_ACTION_UPDATE
+                        - AUDIT_ACTION_DELETE
+                    type: string
+                    format: enum
+                - name: pageSize
+                  in: query
+                  description: Optional. The maximum number of entries to return. Defaults to 50; values above 1000 are coerced to 1000.
+                  schema:
+                    type: integer
+                    format: int32
+                - name: pageToken
+                  in: query
+                  description: Optional. The pagination token returned by a previous call.
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListAuditLogsResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/auth/me:
         get:
             tags:
@@ -3445,6 +3556,64 @@ components:
                     description: Output only. The creation time.
                     format: date-time
             description: Attachment is a file uploaded by a user, optionally linked to a memo.
+        AuditLog:
+            type: object
+            properties:
+                id:
+                    type: string
+                createdTs:
+                    type: string
+                    description: Unix seconds.
+                actorId:
+                    type: integer
+                    description: ID and username snapshot of the administrator who made the change.
+                    format: int32
+                actorName:
+                    type: string
+                resourceType:
+                    enum:
+                        - RESOURCE_TYPE_UNSPECIFIED
+                        - INSTANCE_SETTING
+                        - IDENTITY_PROVIDER
+                        - USAGE_LIMIT
+                        - USER
+                    type: string
+                    format: enum
+                resourceId:
+                    type: string
+                action:
+                    enum:
+                        - ACTION_UNSPECIFIED
+                        - CREATE
+                        - UPDATE
+                        - DELETE
+                    type: string
+                    format: enum
+                changesJson:
+                    type: string
+                    description: |-
+                        JSON array of {"field": ..., "before": ..., "after": ...} entries. Sensitive
+                         values are masked before the row is written.
+                clientIp:
+                    type: string
+                    description: Address the request came from, when one could be resolved.
+            description: |-
+                AuditLog is one record of an administrative change. Rows are written in the
+                 same transaction as the change they describe, and never edited afterwards.
+        AuditLogRetention:
+            type: object
+            properties:
+                maxRecords:
+                    type: string
+                    description: Maximum number of entries to keep. 0 keeps an unlimited number.
+                retainDays:
+                    type: integer
+                    description: Number of days of history to keep. 0 keeps entries of any age.
+                    format: int32
+            description: |-
+                AuditLogRetention declares how much ledger history is kept. A zero value
+                 disables that bound. When more entries than max_records exist, the oldest
+                 ones are pruned; entries older than retain_days are pruned as well.
         BatchDeleteAttachmentsRequest:
             required:
                 - names
@@ -4382,6 +4551,18 @@ components:
                     type: string
                     description: A token to retrieve the next page. Empty when there are no more pages.
             description: Response message for AttachmentService.ListAttachments.
+        ListAuditLogsResponse:
+            type: object
+            properties:
+                auditLogs:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AuditLog'
+                    description: The ledger entries, newest first.
+                nextPageToken:
+                    type: string
+                    description: The pagination token for the next page, empty when there are no more entries.
+            description: Response message for AuditService.ListAuditLogs.
         ListIdentityProvidersResponse:
             type: object
             properties:
@@ -6025,6 +6206,12 @@ tags:
       description: AIService runs AI tasks through the AI providers configured on the instance.
     - name: AttachmentService
       description: AttachmentService manages files attached to memos.
+    - name: AuditService
+      description: |-
+        AuditService exposes the administrative change ledger. Every RPC requires
+         the admin role. The ledger is append-only; it records who changed which
+         administrative object, when, and the key field values before and after the
+         change.
     - name: AuthService
       description: 'AuthService manages sign-in sessions: it issues, refreshes, and revokes the tokens that authenticate API calls.'
     - name: IdentityProviderService

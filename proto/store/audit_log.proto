@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package memos.store;
+
+option go_package = "gen/store";
+
+// AuditLog is one record of an administrative change. Rows are written in the
+// same transaction as the change they describe, and never edited afterwards.
+message AuditLog {
+  int64 id = 1;
+  // Unix seconds.
+  int64 created_ts = 2;
+  // ID and username snapshot of the administrator who made the change.
+  int32 actor_id = 3;
+  string actor_name = 4;
+
+  enum ResourceType {
+    RESOURCE_TYPE_UNSPECIFIED = 0;
+    // An instance setting, such as ACCESS or STORAGE. resource_id is the setting key.
+    INSTANCE_SETTING = 1;
+    // An identity provider. resource_id is its UID.
+    IDENTITY_PROVIDER = 2;
+    // A usage limit. resource_id is its UID.
+    USAGE_LIMIT = 3;
+    // A user account. resource_id is the username snapshot.
+    USER = 4;
+  }
+  ResourceType resource_type = 5;
+  string resource_id = 6;
+
+  enum Action {
+    ACTION_UNSPECIFIED = 0;
+    CREATE = 1;
+    UPDATE = 2;
+    DELETE = 3;
+  }
+  Action action = 7;
+
+  // JSON array of {"field": ..., "before": ..., "after": ...} entries. Sensitive
+  // values are masked before the row is written.
+  string changes_json = 8;
+
+  // Address the request came from, when one could be resolved.
+  string client_ip = 9;
+}
