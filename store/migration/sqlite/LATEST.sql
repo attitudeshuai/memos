@@ -155,3 +155,18 @@ CREATE TABLE user_identity (
 );
 
 CREATE INDEX idx_user_identity_user_id ON user_identity(user_id);
+
+-- idempotency_key
+CREATE TABLE idempotency_key (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  creator_id      INTEGER     NOT NULL,
+  idempotency_key TEXT        NOT NULL,
+  request_hash    TEXT        NOT NULL,
+  status          TEXT        NOT NULL CHECK (status IN ('IN_FLIGHT', 'COMPLETED')) DEFAULT 'IN_FLIGHT',
+  response        BLOB        NOT NULL DEFAULT (x''),
+  created_ts      BIGINT      NOT NULL DEFAULT (strftime('%s', 'now')),
+  expires_ts      BIGINT      NOT NULL,
+  UNIQUE(creator_id, idempotency_key)
+);
+
+CREATE INDEX idx_idempotency_key_expires_ts ON idempotency_key(expires_ts);

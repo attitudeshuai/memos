@@ -465,9 +465,17 @@ type CreateAttachmentRequest struct {
 	Attachment *Attachment `protobuf:"bytes,1,opt,name=attachment,proto3" json:"attachment,omitempty"`
 	// Optional. The ID to use for the attachment. If empty, a unique ID is generated.
 	// Format: ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,34}[a-zA-Z0-9])?$
-	AttachmentId  string `protobuf:"bytes,2,opt,name=attachment_id,json=attachmentId,proto3" json:"attachment_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	AttachmentId string `protobuf:"bytes,2,opt,name=attachment_id,json=attachmentId,proto3" json:"attachment_id,omitempty"`
+	// Optional. Idempotency key for this creation. Behaves like
+	// CreateMemoRequest.idempotency_key: repeated requests with the same key
+	// from the same user return the first stored attachment without uploading
+	// the content again; the request payload, including content bytes, must
+	// match. Concurrent requests wait for the in-flight creation; a different
+	// payload with the same key is rejected with ABORTED. An empty key
+	// disables idempotency.
+	IdempotencyKey string `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateAttachmentRequest) Reset() {
@@ -510,6 +518,13 @@ func (x *CreateAttachmentRequest) GetAttachment() *Attachment {
 func (x *CreateAttachmentRequest) GetAttachmentId() string {
 	if x != nil {
 		return x.AttachmentId
+	}
+	return ""
+}
+
+func (x *CreateAttachmentRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
 	}
 	return ""
 }
@@ -1436,12 +1451,13 @@ const file_api_attachment_service_proto_rawDesc = "" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"H\n" +
 	"\x14GetAttachmentRequest\x120\n" +
 	"\x04name\x18\x01 \x01(\tB\x1c\xe0A\x02\xfaA\x16\n" +
-	"\x14memos.api/AttachmentR\x04name\"\x7f\n" +
+	"\x14memos.api/AttachmentR\x04name\"\xad\x01\n" +
 	"\x17CreateAttachmentRequest\x12:\n" +
 	"\n" +
 	"attachment\x18\x01 \x01(\v2\x15.memos.api.AttachmentB\x03\xe0A\x02R\n" +
 	"attachment\x12(\n" +
-	"\rattachment_id\x18\x02 \x01(\tB\x03\xe0A\x01R\fattachmentId\"\x97\x01\n" +
+	"\rattachment_id\x18\x02 \x01(\tB\x03\xe0A\x01R\fattachmentId\x12,\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tB\x03\xe0A\x01R\x0eidempotencyKey\"\x97\x01\n" +
 	"\x17UpdateAttachmentRequest\x12:\n" +
 	"\n" +
 	"attachment\x18\x01 \x01(\v2\x15.memos.api.AttachmentB\x03\xe0A\x02R\n" +

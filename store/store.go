@@ -1,6 +1,8 @@
 package store
 
 import (
+	"context"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -37,6 +39,11 @@ type Store struct {
 	storageDriverMu         sync.Mutex
 	storageDriverGeneration uint64
 	storageDriverCache      map[storageDriverCacheKey]storage.Driver
+
+	// idempotencyJanitorStop cancels the periodic sweep that removes expired
+	// idempotency records.
+	idempotencyJanitorStop     chan struct{}
+	idempotencyJanitorStopOnce sync.Once
 }
 
 type deploymentConfiguration struct {
@@ -65,7 +72,9 @@ func New(driver Driver, profile *profile.Profile) *Store {
 			identityProviders: map[string]*storepb.IdentityProvider{},
 			instanceSettings:  map[storepb.InstanceSettingKey]*storepb.InstanceSetting{},
 		},
+		idempotencyJanitorStop: make(chan struct{}),
 	}
+	go store.idempotencyJanitorLoop()
 
 	return store
 }
@@ -80,10 +89,37 @@ func (s *Store) GetDataDir() string {
 }
 
 func (s *Store) Close() error {
+	// Stop background goroutines.
+	s.idempotencyJanitorStopOnce.Do(func() {
+		close(s.idempotencyJanitorStop)
+	})
 	// Stop all cache cleanup goroutines
 	s.instanceSettingCache.Close()
 	s.userCache.Close()
 	s.userSettingCache.Close()
 
 	return s.driver.Close()
+}
+
+// idempotencyJanitorLoop periodically removes idempotency records past their
+// retention timestamp. Expiry is also enforced on acquire, so a delayed sweep
+// never extends a key's declared lifetime.
+func (s *Store) idempotencyJanitorLoop() {
+	ticker := time.NewTicker(idempotencyKeySweepInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-s.idempotencyJanitorStop:
+			return
+		case <-ticker.C:
+			removed, err := s.DeleteExpiredIdempotencyKeys(context.Background())
+			if err != nil {
+				slog.Warn("Failed to sweep expired idempotency keys", slog.Any("err", err))
+				continue
+			}
+			if removed > 0 {
+				slog.Debug("Swept expired idempotency keys", slog.Int64("removed", removed))
+			}
+		}
+	}
 }

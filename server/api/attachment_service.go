@@ -78,7 +78,12 @@ func (s *APIService) prepareAttachment(ctx context.Context, request *apipb.Creat
 	if user == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "user not authenticated")
 	}
+	return s.prepareAttachmentForUser(ctx, user, request)
+}
 
+// prepareAttachmentForUser validates an attachment creation for an already
+// authenticated user and builds the store row without persisting it.
+func (s *APIService) prepareAttachmentForUser(ctx context.Context, user *store.User, request *apipb.CreateAttachmentRequest) (*store.Attachment, error) {
 	// Validate required fields
 	if request.Attachment == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "attachment is required")
@@ -161,7 +166,23 @@ func (s *APIService) prepareAttachment(ctx context.Context, request *apipb.Creat
 }
 
 func (s *APIService) CreateAttachment(ctx context.Context, request *apipb.CreateAttachmentRequest) (*apipb.Attachment, error) {
-	create, err := s.prepareAttachment(ctx, request)
+	user, err := s.fetchCurrentUser(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get current user: %v", err)
+	}
+	if user == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "user not authenticated")
+	}
+	return withIdempotency(ctx, s, user.ID, request.GetIdempotencyKey(), request,
+		func() *apipb.Attachment { return &apipb.Attachment{} },
+		func() (*apipb.Attachment, error) { return s.createAttachmentOnce(ctx, user, request) })
+}
+
+// createAttachmentOnce contains the non-idempotent body of CreateAttachment.
+// It runs once per idempotency key, or directly for requests that carry no
+// key.
+func (s *APIService) createAttachmentOnce(ctx context.Context, user *store.User, request *apipb.CreateAttachmentRequest) (*apipb.Attachment, error) {
+	create, err := s.prepareAttachmentForUser(ctx, user, request)
 	if err != nil {
 		return nil, err
 	}

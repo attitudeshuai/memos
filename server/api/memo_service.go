@@ -30,6 +30,14 @@ func (s *APIService) CreateMemo(ctx context.Context, request *apipb.CreateMemoRe
 	if user == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "user not authenticated")
 	}
+	return withIdempotency(ctx, s, user.ID, request.GetIdempotencyKey(), request,
+		func() *apipb.Memo { return &apipb.Memo{} },
+		func() (*apipb.Memo, error) { return s.createMemoOnce(ctx, user, request) })
+}
+
+// createMemoOnce contains the non-idempotent body of CreateMemo. It runs once
+// per idempotency key, or directly for requests that carry no key.
+func (s *APIService) createMemoOnce(ctx context.Context, user *store.User, request *apipb.CreateMemoRequest) (*apipb.Memo, error) {
 	if err := s.throttleAndCharge(ratelimit.ScopeWriteUser, userKey(user.ID), 1); err != nil {
 		return nil, err
 	}

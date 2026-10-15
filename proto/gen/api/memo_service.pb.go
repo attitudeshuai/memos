@@ -355,23 +355,23 @@ type ListMemosRequest struct {
 	// Optional. A CEL expression to filter memos. Combine terms with && and ||.
 	// Available fields:
 	//
-	//	content (string), creator (string, e.g. "users/1"),
-	//	created_ts / updated_ts (timestamp), pinned (bool),
-	//	visibility (string: PRIVATE | PROTECTED | PUBLIC | SPACE),
-	//	space (string resource name, or null when the memo has no space;
-	//	  supports == and comparisons against null, e.g. space != null),
-	//	tags (list<string>; match with `"work" in tags`, not `tag == "work"`),
-	//	has_task_list / has_link / has_code / has_incomplete_tasks (bool),
-	//	has_location (bool; true when the memo has a location attached).
+	//      content (string), creator (string, e.g. "users/1"),
+	//      created_ts / updated_ts (timestamp), pinned (bool),
+	//      visibility (string: PRIVATE | PROTECTED | PUBLIC | SPACE),
+	//      space (string resource name, or null when the memo has no space;
+	//        supports == and comparisons against null, e.g. space != null),
+	//      tags (list<string>; match with `"work" in tags`, not `tag == "work"`),
+	//      has_task_list / has_link / has_code / has_incomplete_tasks (bool),
+	//      has_location (bool; true when the memo has a location attached).
 	//
 	// Note: the time fields here are created_ts / updated_ts, which differ from
 	// the create_time / update_time names used by order_by.
 	// Examples:
 	//
-	//	pinned == true && visibility == "PUBLIC"
-	//	space == "spaces/team" or space == null
-	//	tags.exists(t, t == "urgent")
-	//	content.contains("roadmap") && created_ts > now - duration("168h")
+	//      pinned == true && visibility == "PUBLIC"
+	//      space == "spaces/team" or space == null
+	//      tags.exists(t, t == "urgent")
+	//      content.contains("roadmap") && created_ts > now - duration("168h")
 	Filter string `protobuf:"bytes,3,opt,name=filter,proto3" json:"filter,omitempty"`
 	// Optional. The order to sort results by, as a comma-separated list of
 	// fields following AIP-132. Defaults to "create_time desc".
@@ -572,9 +572,17 @@ type CreateMemoRequest struct {
 	// Optional. The ID to use for the memo, which becomes the final segment of
 	// its resource name. If empty, a unique ID is generated.
 	// Format: ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,34}[a-zA-Z0-9])?$
-	MemoId        string `protobuf:"bytes,2,opt,name=memo_id,json=memoId,proto3" json:"memo_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	MemoId string `protobuf:"bytes,2,opt,name=memo_id,json=memoId,proto3" json:"memo_id,omitempty"`
+	// Optional. Idempotency key for this creation. When the same authenticated
+	// user repeats a request with the same non-empty key, only the first request
+	// is executed and every retry or concurrent duplicate receives that first
+	// response. The same key combined with a different request payload is
+	// rejected with ABORTED. The server keeps serving the stored result for 24
+	// hours; afterwards the key may be reused. An empty key (the default)
+	// disables idempotency and preserves the unkeyed behavior.
+	IdempotencyKey string `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateMemoRequest) Reset() {
@@ -617,6 +625,13 @@ func (x *CreateMemoRequest) GetMemo() *Memo {
 func (x *CreateMemoRequest) GetMemoId() string {
 	if x != nil {
 		return x.MemoId
+	}
+	return ""
+}
+
+func (x *CreateMemoRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
 	}
 	return ""
 }
@@ -1362,9 +1377,15 @@ type CreateMemoCommentRequest struct {
 	Comment *Memo `protobuf:"bytes,2,opt,name=comment,proto3" json:"comment,omitempty"`
 	// Optional. The ID to use for the comment memo, in the same format as
 	// CreateMemoRequest.memo_id. If empty, a unique ID is generated.
-	CommentId     string `protobuf:"bytes,3,opt,name=comment_id,json=commentId,proto3" json:"comment_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	CommentId string `protobuf:"bytes,3,opt,name=comment_id,json=commentId,proto3" json:"comment_id,omitempty"`
+	// Optional. Idempotency key for this creation. Behaves like
+	// CreateMemoRequest.idempotency_key: repeated requests with the same key
+	// from the same user return the first created comment; concurrent requests
+	// wait for the in-flight creation; a different payload with the same key is
+	// rejected with ABORTED. An empty key disables idempotency.
+	IdempotencyKey string `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateMemoCommentRequest) Reset() {
@@ -1414,6 +1435,13 @@ func (x *CreateMemoCommentRequest) GetComment() *Memo {
 func (x *CreateMemoCommentRequest) GetCommentId() string {
 	if x != nil {
 		return x.CommentId
+	}
+	return ""
+}
+
+func (x *CreateMemoCommentRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
 	}
 	return ""
 }
@@ -1886,9 +1914,16 @@ type CreateMemoShareRequest struct {
 	// Format: memos/{memo}
 	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
 	// Required. The share to create. Only expire_time is used.
-	MemoShare     *MemoShare `protobuf:"bytes,2,opt,name=memo_share,json=memoShare,proto3" json:"memo_share,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	MemoShare *MemoShare `protobuf:"bytes,2,opt,name=memo_share,json=memoShare,proto3" json:"memo_share,omitempty"`
+	// Optional. Idempotency key for this creation. Behaves like
+	// CreateMemoRequest.idempotency_key: repeated requests with the same key
+	// from the same user return the first created share link instead of minting
+	// another token; concurrent requests wait for the in-flight creation; a
+	// different payload with the same key is rejected with ABORTED. An empty key
+	// disables idempotency.
+	IdempotencyKey string `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateMemoShareRequest) Reset() {
@@ -1933,6 +1968,13 @@ func (x *CreateMemoShareRequest) GetMemoShare() *MemoShare {
 		return x.MemoShare
 	}
 	return nil
+}
+
+func (x *CreateMemoShareRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
 }
 
 // Request message for MemoService.DeleteMemoShare.
@@ -2432,10 +2474,11 @@ const file_api_memo_service_proto_rawDesc = "" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"<\n" +
 	"\x0eGetMemoRequest\x12*\n" +
 	"\x04name\x18\x01 \x01(\tB\x16\xe0A\x02\xfaA\x10\n" +
-	"\x0ememos.api/MemoR\x04name\"[\n" +
+	"\x0ememos.api/MemoR\x04name\"\x89\x01\n" +
 	"\x11CreateMemoRequest\x12(\n" +
 	"\x04memo\x18\x01 \x01(\v2\x0f.memos.api.MemoB\x03\xe0A\x02R\x04memo\x12\x1c\n" +
-	"\amemo_id\x18\x02 \x01(\tB\x03\xe0A\x01R\x06memoId\"\x7f\n" +
+	"\amemo_id\x18\x02 \x01(\tB\x03\xe0A\x01R\x06memoId\x12,\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tB\x03\xe0A\x01R\x0eidempotencyKey\"\x7f\n" +
 	"\x11UpdateMemoRequest\x12(\n" +
 	"\x04memo\x18\x01 \x01(\v2\x0f.memos.api.MemoB\x03\xe0A\x02R\x04memo\x12@\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskB\x03\xe0A\x02R\n" +
@@ -2495,13 +2538,14 @@ const file_api_memo_service_proto_rawDesc = "" +
 	"\border_by\x18\x04 \x01(\tB\x03\xe0A\x01R\aorderBy\"o\n" +
 	"\x18ListMemoCommentsResponse\x12+\n" +
 	"\bcomments\x18\x01 \x03(\v2\x0f.memos.api.MemoR\bcomments\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x9e\x01\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xcc\x01\n" +
 	"\x18CreateMemoCommentRequest\x12.\n" +
 	"\x06parent\x18\x01 \x01(\tB\x16\xe0A\x02\xfaA\x10\n" +
 	"\x0ememos.api/MemoR\x06parent\x12.\n" +
 	"\acomment\x18\x02 \x01(\v2\x0f.memos.api.MemoB\x03\xe0A\x02R\acomment\x12\"\n" +
 	"\n" +
-	"comment_id\x18\x03 \x01(\tB\x03\xe0A\x01R\tcommentId\"\x95\x02\n" +
+	"comment_id\x18\x03 \x01(\tB\x03\xe0A\x01R\tcommentId\x12,\n" +
+	"\x0fidempotency_key\x18\x04 \x01(\tB\x03\xe0A\x01R\x0eidempotencyKey\"\x95\x02\n" +
 	"\bReaction\x12\x1a\n" +
 	"\x04name\x18\x01 \x01(\tB\x06\xe0A\x03\xe0A\bR\x04name\x120\n" +
 	"\acreator\x18\x02 \x01(\tB\x16\xe0A\x03\xfaA\x10\n" +
@@ -2540,12 +2584,13 @@ const file_api_memo_service_proto_rawDesc = "" +
 	"\x0ememos.api/MemoR\x06parent\"O\n" +
 	"\x16ListMemoSharesResponse\x125\n" +
 	"\vmemo_shares\x18\x01 \x03(\v2\x14.memos.api.MemoShareR\n" +
-	"memoShares\"\x82\x01\n" +
+	"memoShares\"\xb0\x01\n" +
 	"\x16CreateMemoShareRequest\x12.\n" +
 	"\x06parent\x18\x01 \x01(\tB\x16\xe0A\x02\xfaA\x10\n" +
 	"\x0ememos.api/MemoR\x06parent\x128\n" +
 	"\n" +
-	"memo_share\x18\x02 \x01(\v2\x14.memos.api.MemoShareB\x03\xe0A\x02R\tmemoShare\"I\n" +
+	"memo_share\x18\x02 \x01(\v2\x14.memos.api.MemoShareB\x03\xe0A\x02R\tmemoShare\x12,\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tB\x03\xe0A\x01R\x0eidempotencyKey\"I\n" +
 	"\x16DeleteMemoShareRequest\x12/\n" +
 	"\x04name\x18\x01 \x01(\tB\x1b\xe0A\x02\xfaA\x15\n" +
 	"\x13memos.api/MemoShareR\x04name\"<\n" +

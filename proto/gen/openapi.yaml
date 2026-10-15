@@ -99,6 +99,18 @@ paths:
                      Format: ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,34}[a-zA-Z0-9])?$
                   schema:
                     type: string
+                - name: idempotencyKey
+                  in: query
+                  description: |-
+                    Optional. Idempotency key for this creation. Behaves like
+                     CreateMemoRequest.idempotency_key: repeated requests with the same key
+                     from the same user return the first stored attachment without uploading
+                     the content again; the request payload, including content bytes, must
+                     match. Concurrent requests wait for the in-flight creation; a different
+                     payload with the same key is rejected with ABORTED. An empty key
+                     disables idempotency.
+                  schema:
+                    type: string
             requestBody:
                 content:
                     application/json:
@@ -767,6 +779,18 @@ paths:
                      Format: ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,34}[a-zA-Z0-9])?$
                   schema:
                     type: string
+                - name: idempotencyKey
+                  in: query
+                  description: |-
+                    Optional. Idempotency key for this creation. When the same authenticated
+                     user repeats a request with the same non-empty key, only the first request
+                     is executed and every retry or concurrent duplicate receives that first
+                     response. The same key combined with a different request payload is
+                     rejected with ABORTED. The server keeps serving the stored result for 24
+                     hours; afterwards the key may be reused. An empty key (the default)
+                     disables idempotency and preserves the unkeyed behavior.
+                  schema:
+                    type: string
             requestBody:
                 content:
                     application/json:
@@ -1082,6 +1106,16 @@ paths:
                      CreateMemoRequest.memo_id. If empty, a unique ID is generated.
                   schema:
                     type: string
+                - name: idempotencyKey
+                  in: query
+                  description: |-
+                    Optional. Idempotency key for this creation. Behaves like
+                     CreateMemoRequest.idempotency_key: repeated requests with the same key
+                     from the same user return the first created comment; concurrent requests
+                     wait for the in-flight creation; a different payload with the same key is
+                     rejected with ABORTED. An empty key disables idempotency.
+                  schema:
+                    type: string
             requestBody:
                 content:
                     application/json:
@@ -1324,6 +1358,17 @@ paths:
                   in: path
                   description: The memo id.
                   required: true
+                  schema:
+                    type: string
+                - name: idempotencyKey
+                  in: query
+                  description: |-
+                    Optional. Idempotency key for this creation. Behaves like
+                     CreateMemoRequest.idempotency_key: repeated requests with the same key
+                     from the same user return the first created share link instead of minting
+                     another token; concurrent requests wait for the in-flight creation; a
+                     different payload with the same key is rejected with ABORTED. An empty key
+                     disables idempotency.
                   schema:
                     type: string
             requestBody:

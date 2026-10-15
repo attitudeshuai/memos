@@ -37,6 +37,17 @@ func (s *APIService) CreateMemoComment(ctx context.Context, request *apipb.Creat
 	if user == nil {
 		return nil, status.Errorf(codes.Unauthenticated, "user not authenticated")
 	}
+	return withIdempotency(ctx, s, user.ID, request.GetIdempotencyKey(), request,
+		func() *apipb.Memo { return &apipb.Memo{} },
+		func() (*apipb.Memo, error) {
+			return s.createMemoCommentOnce(ctx, user, request, relatedMemo)
+		})
+}
+
+// createMemoCommentOnce contains the non-idempotent body of CreateMemoComment.
+// It runs once per idempotency key, or directly for requests that carry no
+// key.
+func (s *APIService) createMemoCommentOnce(ctx context.Context, user *store.User, request *apipb.CreateMemoCommentRequest, relatedMemo *store.Memo) (*apipb.Memo, error) {
 	if err := s.throttleAndCharge(ratelimit.ScopeWriteUser, userKey(user.ID), 1); err != nil {
 		return nil, err
 	}
@@ -50,7 +61,7 @@ func (s *APIService) CreateMemoComment(ctx context.Context, request *apipb.Creat
 		return nil, status.Errorf(codes.InvalidArgument, "comment is required")
 	}
 
-	memoUID, err = ValidateAndGenerateUID(request.CommentId)
+	memoUID, err := ValidateAndGenerateUID(request.CommentId)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +109,8 @@ func (s *APIService) CreateMemoComment(ctx context.Context, request *apipb.Creat
 // createMemoCommentNotification records the comment in the related memo
 // creator's inbox. The comment itself is already persisted, so a failure here
 // only loses the notification and is logged instead of failing the request;
-// failing it would make clients retry and create a duplicate comment.
+// clients that do not use idempotency keys would otherwise retry and create a
+// duplicate comment.
 func (s *APIService) createMemoCommentNotification(ctx context.Context, creatorID int32, memo *store.Memo, relatedMemo *store.Memo) {
 	if creatorID == relatedMemo.CreatorID {
 		return

@@ -108,6 +108,13 @@ type Driver interface {
 	GetMemoShare(ctx context.Context, find *FindMemoShare) (*MemoShare, error)
 	DeleteMemoShare(ctx context.Context, delete *DeleteMemoShare) error
 
+	// IdempotencyKey model related methods.
+	AcquireIdempotencyKey(ctx context.Context, insert *IdempotencyKeyInsert, nowTs, staleBeforeTs int64) (*IdempotencyRecord, bool, error)
+	GetIdempotencyKey(ctx context.Context, creatorID int32, key string) (*IdempotencyRecord, error)
+	CompleteIdempotencyKey(ctx context.Context, recordID int32, creatorID int32, key string, response []byte) error
+	ReleaseIdempotencyKey(ctx context.Context, recordID int32, creatorID int32, key string) error
+	DeleteExpiredIdempotencyKeys(ctx context.Context, nowTs int64) (int64, error)
+
 	// UserIdentity model related methods.
 	CreateUserIdentity(ctx context.Context, create *UserIdentity) (*UserIdentity, error)
 	CreateUserWithIdentity(ctx context.Context, createUser *User, createIdentity *UserIdentity) (*User, error)
